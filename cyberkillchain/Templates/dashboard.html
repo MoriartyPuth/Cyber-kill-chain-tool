@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cyber Kill Chain Simulator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Funnel: Chart.js-only (D3 removed) -->
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Command Center</h2>
+            <div class="budget-card">
+                <small>Defense Budget</small>
+                <h3>${{ "{:,}".format(budget) }}</h3>
+            </div>
+
+            <!-- User Info (Database Integration) -->
+            <div class="user-info-card">
+                <small>Logged In</small>
+                <p id="username">Guest User</p>
+                <a href="/user/profile" class="profile-link">📊 View Profile</a>
+            </div>
+
+
+            
+            <div class="shop">
+                <h4>Infrastructure Upgrades</h4>
+                {% for name, info in available_upgrades.items() %}
+                <div class="item">
+                    <span>{{ name }}</span>
+                    <form method="POST" action="/upgrade">
+                        <input type="hidden" name="item" value="{{ name }}">
+                        <button type="submit" {% if budget < info.cost %}disabled{% endif %} title="ROI: {{ info.roi }}x">
+                            Buy (${{ info.cost }})
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="/reset" class="reset-link">Wipe System & Reset</a>
+        </aside>
+
+        <main class="main">
+            <header class="top-header">
+                <h1>Threat Simulation Dashboard</h1>
+                <form method="POST" action="/simulate" class="sim-form">
+                    <select name="attack">
+                        <option value="">Select Attack Type</option>
+                        <option>Phishing</option>
+                        <option>Malware</option>
+                        <option>Ransomware</option>
+                        <option>DDoS</option>
+                        <option>Supply Chain</option>
+                        <option>APT</option>
+                        <option>Insider Threat</option>
+                    </select>
+                    <button type="submit" class="btn-run">Execute Attack</button>
+                </form>
+            </header>
+
+            <!-- Analytics Dashboard (Feature 3) -->
+            {% if analytics %}
+            <div class="analytics-section">
+                {% if filter_stage %}
+                <div class="filter-banner">Showing results filtered by: <strong>{{ filter_stage|capitalize }}</strong> — <a href="{{ url_for('dashboard') }}">Clear</a></div>
+                {% endif %}
+                <h3>📊 Performance Analytics</h3>
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <small>Average Detection Rate</small>
+                        <h2 class="text-accent">{{ analytics.avg_score }}% {% if analytics.computed_by_ai %}<span class="ai-badge">🤖 AI</span>{% endif %}</h2>
+                    </div>
+                    <div class="analytics-card">
+                        <small>Best Score</small>
+                        <h2 class="text-green">{{ analytics.max_score }}%</h2>
+                    </div>
+                    <div class="analytics-card">
+                        <small>Total Simulations</small>
+                        <h2>{{ analytics.total_simulations }}</h2>
+                    </div>
+                    <div class="analytics-card">
+                        <small>Detection Trend</small>
+                        <canvas id="trendChart" height="40"></canvas>
+                    </div>
+                </div>
+
+                <!-- ROI Analysis (Feature 3) -->
+                {% if roi_data %}
+                <div class="roi-section">
+                    <h4>Investment ROI Analysis</h4>
+                    <table class="roi-table">
+                        <thead>
+                            <tr><th>Upgrade</th><th>Cost</th><th>Units</th><th>ROI Multiplier</th><th>Total Value</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for upgrade, data in roi_data.items() %}
+                            <tr>
+                                <td><strong>{{ upgrade }}</strong></td>
+                                <td>${{ data.cost }}</td>
+                                <td>{{ data.units }}</td>
+                                <td>{{ data.roi_multiplier }}x</td>
+                                <td class="text-green">${{ "{:,}".format(data.total_roi|int) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Attack Type Breakdown (Feature 3) -->
+                {% if analytics.attack_breakdown %}
+                <div class="breakdown-section">
+                    <div class="panel-row">
+                        <div class="panel-label">
+                            <h4>Attack Type Effectiveness</h4>
+                        </div>
+                        <div class="panel-content">
+                            <canvas id="attackChart" height="60"></canvas>
+                            <input type="hidden" id="attack_labels" value='{{ analytics.attack_labels|tojson }}'>
+                            <input type="hidden" id="attack_values" value='{{ analytics.attack_values|tojson }}'>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Insights Navigation: open focused panel pages instead -->
+                <div class="card insights-nav-card mt-4">
+                    <div class="panel-row">
+                        <div class="panel-label">
+                            <h4>Insights</h4>
+                        </div>
+                        <div class="panel-content">
+                            <div class="insight-buttons">
+                                <a class="btn-insight" href="{{ url_for('insights_panel', panel='timeline') }}">Case Timeline</a>
+                                <a class="btn-insight" href="{{ url_for('insights_panel', panel='breakdown') }}">Case Breakdown</a>
+                                <a class="btn-insight" href="{{ url_for('insights_panel', panel='workflow') }}">Workflow Analysis</a>
+                                <a class="btn-insight" href="{{ url_for('insights_panel', panel='funnel') }}">Threat Funnel</a>
+                            </div>
+                            <p class="text-dim mt-2">Open each insight on its own page for a focused, shareable view.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if score is defined %}
+            <div class="summary-grid">
+                <div class="card">
+                    <small>Detection Success</small>
+                    <h2 class="{{ 'text-green' if score > 60 else 'text-red' }}">{{ score }}%</h2>
+                </div>
+                <div class="card">
+                    <small>Active Threat</small>
+                    <h2>{{ attack_type }}</h2>
+                </div>
+
+                <div class="card flex-center">
+                    {% if last_sim_id %}
+                    <a href="/report/{{ last_sim_id }}" class="btn-download">📄 View Report</a>
+                    {% else %}
+                    <a href="/view_report" class="btn-download">📄 View Report</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <section class="card">
+                <h3>Technical Trace Analysis</h3>
+                <table>
+                    <thead>
+                        <tr><th>Stage</th><th>Status</th><th>Tool</th><th>Details</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for e in events %}
+                        <tr class="{{ 'row-miss' if e.status == 'Missed' else 'row-hit' }}">
+                            <td><strong>{{ e.stage }}</strong></td>
+                            <td><span class="pill">{{ e.status }}</span></td>
+                            <td>{{ e.tool }}</td>
+                            <td>{{ e.reason if e.status == 'Detected' else e.miss_reason }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- AI Threat Narrative (Feature: AI Integration) -->
+            {% if ai_enabled and playbook %}
+            <section class="card ai-section">
+                <h3>🤖 AI Threat Analysis</h3>
+                <div class="ai-narrative">
+                    <p><strong>Threat Narrative:</strong> This section is powered by AI and will analyze the attack pattern when connected to OpenAI.</p>
+                    <p><em>Note: Set your OPENAI_API_KEY in the .env file to enable AI-powered threat narratives and intelligent recommendations.</em></p>
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Incident Response Playbook (Feature 8) -->
+            {% if playbook %}
+            <section class="playbook-section card">
+                <h3>🚨 Incident Response Playbook: {{ attack_type }}</h3>
+                <div class="playbook-grid">
+                    <div class="playbook-card blue-team-card">
+                        <h4>🛡️ Blue Team Response</h4>
+                        <p class="response-time"><strong>Estimated Response Time:</strong> {{ playbook.blue_team_time }}</p>
+                        <ol class="playbook-actions">
+                            {% for action in playbook.blue_team %}
+                            <li>{{ action }}</li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                    <div class="playbook-card red-team-card">
+                        <h4>🔴 Attacker Actions</h4>
+                        <p class="attack-phase"><strong>Attacker Objectives:</strong></p>
+                        <ol class="playbook-actions">
+                            {% for action in playbook.red_team %}
+                            <li>{{ action }}</li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if recommendations %}
+            <section class="recommendations-container">
+                <h3 class="section-title">🛡️ Required Remediation</h3>
+                <div class="rec-grid">
+                    {% for rec in recommendations %}
+                    <div class="rec-card border-left-red">
+                        <div class="rec-header">
+                            <span class="stage-tag">{{ rec.stage }}</span>
+                            <span class="priority">High Priority</span>
+                        </div>
+                        <div class="rec-body">
+                            <p><strong>Strategic Improvement:</strong> {{ rec.improve }}</p>
+                            <p><strong>Immediate Incident Response:</strong> {{ rec.response }}</p>
+                        </div>
+                        <small class="text-dim">Pro-tip: Purchase the corresponding upgrade in the sidebar.</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% else %}
+            <div class="card empty-state">
+                <p>No active simulation. Select an attack vector above to begin analysis.</p>
+            </div>
+            {% endif %}
+
+            <section class="card mt-4">
+                <h3>Mission Logs (Recent History)</h3>
+                <table class="history-table">
+                    <thead>
+                        <tr><th>Time</th><th>Vector</th><th>Success Rate</th></tr>
+                    </thead>
+                    <tbody>
+                        {% if history %}
+                            {% for h in history %}
+                            <tr>
+                                <td>{{ h.time }}</td>
+                                <td>{{ h.attack }}</td>
+                                <td class="{{ 'text-green' if h.score > 60 else 'text-red' }}">{{ h.score }}%</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" style="text-align: center; color: #94a3b8;">No simulations run yet</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Feature 3: Analytics Charts
+        {% if analytics %}
+        // Trend chart
+        const trendCtx = document.getElementById('trendChart');
+        if (trendCtx) {
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: {{ analytics.scores|length }}}, (_, i) => i+1),
+                    datasets: [{
+                        label: 'Detection Rate',
+                        data: {{ analytics.scores }},
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        tension: 0.3,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        // Attack breakdown chart
+        const attackCtx = document.getElementById('attackChart');
+        if (attackCtx) {
+            new Chart(attackCtx, {
+                type: 'bar',
+                data: {
+                    labels: JSON.parse(document.getElementById('attack_labels').value),
+                    datasets: [{
+                        label: 'Avg Detection Rate %',
+                        data: JSON.parse(document.getElementById('attack_values').value),
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#38bdf8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        // Case Timeline
+        {% if analytics.case_timeline %}
+        const timelineCtx = document.getElementById('caseTimeline');
+        if (timelineCtx) {
+            new Chart(timelineCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ analytics.case_timeline["labels"]|tojson }},
+                    datasets: [{
+                        label: 'Cases',
+                        data: {{ analytics.case_timeline["values"]|tojson }},
+
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96,165,250,0.08)',
+                        tension: 0.35,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+        {% endif %}
+
+        // Case Breakdown (donut)
+        {% if analytics.case_breakdown %}
+        const caseBreakCtx = document.getElementById('caseBreakdown');
+        if (caseBreakCtx) {
+            const labels = JSON.parse(document.getElementById('case_break_labels').value);
+            const data = JSON.parse(document.getElementById('case_break_values').value);
+            new Chart(caseBreakCtx, {
+                type: 'doughnut',
+                data: { labels: labels, datasets: [{ data, backgroundColor: ['#ef4444','#f97316','#f59e0b','#3b82f6','#64748b'], hoverOffset: 6 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1.0,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+        {% endif %}
+
+        // Workflow Chart (horizontal bar)
+        {% if analytics.workflow %}
+        const workflowCtx = document.getElementById('workflowChart');
+        if (workflowCtx) {
+            const wfLabels = {{ analytics.workflow["labels"]|tojson }};
+            const wfData = {{ analytics.workflow["values"]|tojson }};
+            const wfMaxBar = Math.max(12, Math.min(40, Math.floor(320 / Math.max(1, wfLabels.length))));
+            new Chart(workflowCtx, {
+                type: 'bar',
+                data: {
+                    labels: wfLabels,
+                    datasets: [{
+                        label: 'Cases',
+                        data: wfData,
+                        backgroundColor: ['#60a5fa','#7c3aed','#06b6d4','#f97316','#10b981']
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                    elements: {
+                        bar: {
+                            borderRadius: 6,
+                            maxBarThickness: wfMaxBar,
+                            barPercentage: 0.85,
+                            categoryPercentage: 0.8
+                        }
+                    },
+                    layout: { padding: { top: 8, bottom: 8, left: 6, right: 6 } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0 } },
+                        y: { ticks: { autoSkip: false } }
+                    }
+                }
+            });
+        }
+        {% endif %}
+
+        // Funnel: Chart.js preview (D3 removed)
+        {% if analytics.funnel %}
+        (function() {
+            const container = document.getElementById('funnelChart');
+            if (!container || typeof Chart === 'undefined') return;
+            container.innerHTML = '<canvas id="funnelPreview" style="width:100%; height:220px;"></canvas>';
+            const ctx = document.getElementById('funnelPreview').getContext('2d');
+            const values = [{{ analytics.funnel.analyzed }}, {{ analytics.funnel.found }}, {{ analytics.funnel.created }}];
+            const labels = ['Analyzed','Found','Created'];
+            const colors = ['#60a5fa','#10b981','#f97316'];
+            const total = values[0] || 1;
+            try {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ data: values, backgroundColor: colors }] },
+                    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, datalabels:{ formatter:(v)=> v + ' (' + Math.round((v/total)*100) + '%)', color:'#fff', anchor:'end', align:'end' } }, scales:{ y:{ beginAtZero:true } } },
+                    plugins: (typeof ChartDataLabels !== 'undefined') ? [ChartDataLabels] : []
+                });
+            } catch (e) { console.error('Funnel preview error', e); }
+        })();
+        {% endif %}
+        {% endif %}
+    </script>
+</body>
+</html>

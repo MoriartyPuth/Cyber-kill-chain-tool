@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Cyber Kill Chain Simulator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <h1>🔒 Login</h1>
+            <p class="auth-subtitle">Cyber Kill Chain Simulator</p>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="flash {{ category }}">
+                        {{ message }}
+                        <span class="close" onclick="this.parentElement.style.display='none';">&times;</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" class="auth-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required placeholder="Enter username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Enter password">
+                </div>
+                
+                <button type="submit" class="btn-submit">Login</button>
+            </form>
+            
+            <p class="auth-link">
+                Don't have an account? <a href="{{ url_for('register') }}">Register here</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
