@@ -1,5 +1,5 @@
-# Cyber-kill-chain-tool
-# Cybersecurity Defense Simulation Platform
+
+# Cybersecurity Kill Chain Defense Simulation Platform
 
 ## Overview
 
