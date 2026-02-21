@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Incident Post-Mortem</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main">
+        <section class="card">
+            <h3>Incident Post-Mortem: {{ case.title }}</h3>
+            <p class="text-dim">Status: {{ case.status }} • Severity: {{ case.severity }}</p>
+
+            <h4>Timeline</h4>
+            {% if events %}
+            <ul>
+                {% for e in events %}
+                <li>{{ e.created_at.strftime('%Y-%m-%d %H:%M') }} — {{ e.action }} {{ e.meta | tojson }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-dim">No events recorded.</p>
+            {% endif %}
+
+            <h4>Key Notes</h4>
+            {% if notes %}
+            <ul>
+                {% for n in notes %}
+                <li>{{ n.created_at.strftime('%Y-%m-%d %H:%M') }} — {{ n.note }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-dim">No notes recorded.</p>
+            {% endif %}
+
+            <h4>Lessons Learned</h4>
+            <ul>
+                {% for l in lessons %}
+                <li>{{ l }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+        <a href="{{ url_for('case_detail', case_id=case.id) }}" class="btn-run">Back to Case</a>
+    </div>
+</body>
+</html>

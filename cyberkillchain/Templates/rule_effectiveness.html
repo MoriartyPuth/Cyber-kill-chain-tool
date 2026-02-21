@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Detection Rule Effectiveness</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Detection Rule Effectiveness</h3>
+            <div class="insight-buttons">
+                <a href="{{ url_for('intel_page') }}" class="btn-search panel-link">Back to Threat Intel</a>
+                <a href="{{ url_for('dashboard') }}" class="btn-search panel-link">Back to Dashboard</a>
+            </div>
+            <p class="text-dim mt-2">Analyzed events (last 30 days): {{ event_count }}</p>
+        </section>
+
+        <section class="card mt-4">
+            <h3>Per-Rule Precision/Recall Trend</h3>
+            {% if rules and selected_rule %}
+            <form method="GET" action="{{ url_for('rule_effectiveness_page') }}" class="inline-form">
+                <label>Rule
+                    <select name="rule_id">
+                        {% for r in rules %}
+                        <option value="{{ r.id }}" {% if selected_rule and selected_rule.id == r.id %}selected{% endif %}>{{ r.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="submit" class="btn-search">Apply</button>
+            </form>
+            <div class="severity-grid mt-4">
+                <div class="severity-card">
+                    <small>Precision</small>
+                    <h2>{{ selected_rule.precision }}%</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Recall</small>
+                    <h2>{{ selected_rule.recall }}%</h2>
+                </div>
+                <div class="severity-card">
+                    <small>False Positives</small>
+                    <h2>{{ selected_rule.fp }}</h2>
+                </div>
+            </div>
+            <canvas id="ruleTrendChart" height="90"></canvas>
+            {% else %}
+            <p class="text-dim">No alert rules found. Create rules in Settings first.</p>
+            {% endif %}
+        </section>
+
+        <section class="card mt-4">
+            <h3>Top Noisy Rules</h3>
+            {% if top_noisy %}
+            <table>
+                <thead>
+                    <tr><th>Rule</th><th>False Positives</th><th>Precision</th><th>Recall</th><th>Scope</th></tr>
+                </thead>
+                <tbody>
+                    {% for r in top_noisy %}
+                    <tr>
+                        <td><strong>{{ r.name }}</strong></td>
+                        <td>{{ r.fp }}</td>
+                        <td>{{ r.precision }}%</td>
+                        <td>{{ r.recall }}%</td>
+                        <td>{{ r.attack_type }} / {{ r.stage }} / {{ r.severity_threshold }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No noisy rules yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="card mt-4">
+            <h3>All Rules</h3>
+            {% if rules %}
+            <table>
+                <thead>
+                    <tr><th>Rule</th><th>Status</th><th>Precision</th><th>Recall</th><th>Predicted</th><th>TP</th><th>FP</th></tr>
+                </thead>
+                <tbody>
+                    {% for r in rules %}
+                    <tr>
+                        <td>{{ r.name }}</td>
+                        <td>{{ r.status }}</td>
+                        <td>{{ r.precision }}%</td>
+                        <td>{{ r.recall }}%</td>
+                        <td>{{ r.predicted }}</td>
+                        <td>{{ r.tp }}</td>
+                        <td>{{ r.fp }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No rules available.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    {% if selected_rule %}
+    <script>
+        const trendCtx = document.getElementById('ruleTrendChart');
+        if (trendCtx) {
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ trend_labels|tojson }},
+                    datasets: [
+                        {
+                            label: 'Precision %',
+                            data: {{ selected_rule.precision_trend|tojson }},
+                            borderColor: '#0b5fff',
+                            backgroundColor: 'rgba(11,95,255,0.08)',
+                            tension: 0.25,
+                            fill: false
+                        },
+                        {
+                            label: 'Recall %',
+                            data: {{ selected_rule.recall_trend|tojson }},
+                            borderColor: '#f97316',
+                            backgroundColor: 'rgba(249,115,22,0.08)',
+                            tension: 0.25,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

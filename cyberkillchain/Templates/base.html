@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Cyber Kill Chain Simulator{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- Chart.js Sankey plugin (used for workflow Sankey visualization) -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.2.0/dist/chartjs-chart-sankey.min.js"></script>
+    <!-- html2canvas for funnel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Command Center</h2>
+            <div class="budget-card">
+                <small>Defense Budget</small>
+                <h3>${{ "{:,}".format(budget or 0) }}</h3>
+            </div>
+            <div class="user-info-card">
+                <small>Logged In</small>
+                <p id="username">{{ current_user.username if current_user is defined else 'Guest User' }}</p>
+                <a href="/user/profile" class="profile-link">📊 View Profile</a>
+            </div>
+            <a href="/reset" class="reset-link">Wipe System & Reset</a>
+        </aside>
+
+        <main class="main">
+            <header class="top-header">
+                <h1>Threat Simulation Dashboard</h1>
+                <form method="POST" action="/simulate" class="sim-form">
+                    <select name="attack">
+                        <option value="">Select Attack Type</option>
+                        <option>Phishing</option>
+                        <option>Malware</option>
+                        <option>Ransomware</option>
+                        <option>DDoS</option>
+                        <option>Supply Chain</option>
+                        <option>APT</option>
+                        <option>Insider Threat</option>
+                    </select>
+                    <button type="submit" class="btn-run">Execute Attack</button>
+                </form>
+            </header>
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Case Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Case Management</h3>
+            <form method="POST" action="{{ url_for('create_case') }}" class="case-form">
+                <input type="text" name="title" placeholder="Case title">
+                <textarea name="description" placeholder="Case description"></textarea>
+                <select name="template_attack">
+                    <option value="">Template (optional)</option>
+                    <option>Phishing</option>
+                    <option>Malware</option>
+                    <option>Ransomware</option>
+                    <option>DDoS</option>
+                    <option>Supply Chain</option>
+                    <option>APT</option>
+                    <option>Insider Threat</option>
+                </select>
+                <select name="simulation_id">
+                    <option value="">Link to simulation (optional)</option>
+                    {% for h in history %}
+                        {% if h.id %}
+                        <option value="{{ h.id }}">{{ h.attack }} - {{ h.score }}% ({{ h.time }})</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <select name="assignee_id">
+                    <option value="">Assign to</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}">{{ u.username }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" name="sla_hours" min="1" value="48">
+                <button type="submit" class="btn-search">Create Case</button>
+            </form>
+            {% if cases %}
+            <div class="case-list">
+                {% for c in cases %}
+                <div class="case-item">
+                    <div>
+                        <strong>{{ c.title }}</strong>
+                        <small class="text-dim">Status: {{ c.status }} Severity: {{ c.severity }}</small>
+                    </div>
+                    <a class="btn-search" href="{{ url_for('case_detail', case_id=c.id) }}">Open</a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-dim">No cases yet.</p>
+            {% endif %}
+        </section>
+        <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+    </div>
+</body>
+</html>
+

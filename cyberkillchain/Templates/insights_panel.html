@@ -1,0 +1,429 @@
+{% extends 'base.html' %}
+{% block body_class %}insights-page{% endblock %}
+
+{% block content %}
+<div class="insights-dark">
+<div class="card">
+    <div class="panel-row">
+        <div class="panel-label">
+            <h4>{{ panel|capitalize }} Insight</h4>
+            <a href="{{ url_for('dashboard') }}" class="btn-small mt-2">← Back to Dashboard</a>
+        </div>
+        <div class="panel-content">
+            {% if panel == 'timeline' %}
+                <div class="insight-actions">
+                    <button id="exportTimeline" class="btn-action">Export PNG</button>
+                </div>
+                <canvas id="caseTimeline" class="fixed-chart" width="760" height="300" style="width:760px; height:300px;"></canvas>
+                <input type="hidden" id="ct_labels" value='{{ analytics.case_timeline["labels"]|tojson }}'>
+                <input type="hidden" id="ct_values" value='{{ analytics.case_timeline["values"]|tojson }}'>
+            {% elif panel == 'breakdown' %}
+                <div class="insight-actions">
+                    <button id="exportBreak" class="btn-action">Export PNG</button>
+                </div>
+
+                <div class="breakdown-small-wrapper" style="max-width:760px; display:flex; gap:18px; align-items:center; justify-content:center;">
+                    <div style="flex:1; max-width:480px;">
+                        <canvas id="caseBreakdownBar" height="120" style="display:block; width:100%;"></canvas>
+                    </div>
+                    <div class="breakdown-legend" style="flex:0 0 220px;">
+                        {% for k, v in analytics.case_breakdown.counts.items() %}
+                            <div><strong>{{ k }}</strong>: {{ v }} ({{ analytics.case_breakdown.percent[k] }}%)</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <input type="hidden" id="case_break_labels" value='{{ analytics.case_breakdown["labels"]|tojson }}'>
+                <input type="hidden" id="case_break_values" value='{{ analytics.case_breakdown["values"]|tojson }}'>
+            {% elif panel == 'workflow' %}
+                <div class="insight-actions">
+                    <button id="exportWorkflow" class="btn-action">Export PNG</button>
+                </div>
+                <!-- Sankey preferred; bar chart fallback -->
+                <canvas id="workflowSankey" height="260"></canvas>
+                <canvas id="workflowChart" height="260" style="display:none;"></canvas>
+                <div class="workflow-grid mt-3">
+                    {% for k, v in analytics.workflow.counts.items() %}
+                    <div class="workflow-item">
+                        <small>{{ k }}</small>
+                        <h3>{{ v }}</h3>
+                        <small class="text-dim">{{ analytics.workflow.percent[k] }}%</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% elif panel == 'funnel' %}
+                <div class="insight-actions">
+                    <button id="exportFunnel" class="btn-action">Export Funnel</button>
+                    <button id="exportFunnelChart" class="btn-action">Export Chart</button>
+                    <button id="aiFunnel" class="btn-action {% if not ai_enabled %}ai-disabled{% endif %}" onclick="(console.log('AI Suggest clicked'), triggerAiFunnel())" title="{% if not ai_enabled %}AI not enabled — set OPENAI_API_KEY to enable{% else %}Get AI-assisted recommendations{% endif %}" {% if not ai_enabled %}aria-disabled="true"{% endif %}>AI Suggest</button>
+                </div>
+                <div class="funnel-wrapper" style="display:flex; gap:18px; align-items:flex-start; max-width:760px;">
+                    <div style="flex:1; min-width:320px;">
+                        <canvas id="funnelChartCanvas" class="fixed-chart" width="760" height="300" style="width:760px; height:300px; cursor:pointer;"></canvas>
+                        <small class="text-dim">Click a bar to filter the dashboard</small>
+                        <div id="funnelAISuggestions" class="ai-suggestions mt-3"></div>
+                    </div>
+                    <div style="width:260px;">
+                        <div class="funnel-numbers mt-3">
+                            <div><small>Analyzed</small><h3>{{ analytics.funnel.analyzed }}</h3></div>
+                            <div><small>Found</small><h3>{{ analytics.funnel.found }}<span class="text-dim"> ({{ analytics.funnel.found_pct }}%)</span></h3></div>
+                            <div><small>Created</small><h3>{{ analytics.funnel.created }}<span class="text-dim"> ({{ analytics.funnel.created_pct }}%)</span></h3></div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %} 
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Charts scripts -->
+<script>
+    // Feature guard helpers
+    const HAS_DATALABELS = (typeof ChartDataLabels !== 'undefined');
+    const HAS_CHART = (typeof Chart !== 'undefined');
+    const AI_ENABLED = {{ 'true' if ai_enabled else 'false' }};
+    function pluginsWith(...args){ const arr = []; if (HAS_DATALABELS) arr.push(ChartDataLabels); args.forEach(a=>arr.push(a)); return arr; }
+
+    if (!HAS_CHART) console.error('Chart.js not loaded - charts will not render.');
+
+    // Global AI trigger function (safe to call as onclick fallback)
+    window._lastClickedFunnelStage = null;
+    async function triggerAiFunnel(stage = null){
+        const out = document.getElementById('funnelAISuggestions');
+        if (!out) return;
+        if (!AI_ENABLED){ out.innerHTML = '<div class="empty-state">AI is not enabled on this instance. Set OPENAI_API_KEY to enable AI suggestions.</div>'; return; }
+        const useStage = stage || window._lastClickedFunnelStage || null;
+        out.innerHTML = '<div class="text-dim">Fetching AI suggestions...</div>';
+        try{
+            const res = await fetch('/ai/insights', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ panel: 'funnel', stage: useStage }) });
+            const data = await res.json();
+            if (data.recommendations){
+                const r = data.recommendations;
+                let html = '';
+                html += '<div class="ai-card">';
+                html += '<div class="ai-card-header"><h4>Recommendations<span class="ai-badge">' + (r.priority ? r.priority.toUpperCase() : '') + '</span></h4></div>';
+                if (r.immediate_actions && r.immediate_actions.length){ html += '<div><strong>Immediate Actions</strong><ul class="ai-list">'; r.immediate_actions.forEach(a => { html += '<li>' + a + '</li>'; }); html += '</ul></div>'; }
+                if (r.upgrade_suggestions && r.upgrade_suggestions.length){ html += '<div><strong>Upgrade Suggestions</strong><ul class="ai-list">'; r.upgrade_suggestions.forEach(u => { html += '<li>' + u + '</li>'; }); html += '</ul></div>'; }
+                if (r.strategy){ html += '<div><strong>Strategy</strong><p>' + (r.strategy || '') + '</p></div>'; }
+                html += '<div class="ai-actions"><button id="copyAiJsonGlobal" class="btn-small">Copy JSON</button></div>';
+                html += '</div>';
+                out.innerHTML = html;
+                const copyBtn = document.getElementById('copyAiJsonGlobal');
+                if (copyBtn){ copyBtn.addEventListener('click', ()=>{ navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(()=>{ copyBtn.innerText = 'Copied'; setTimeout(()=>{ copyBtn.innerText = 'Copy JSON'; }, 1200); }).catch(()=>{ alert('Copy failed'); }); }); }
+                return;
+            }
+            if (data.strategy){ out.innerHTML = '<div class="ai-card"><div class="ai-card-header"><h4>Strategy</h4></div><div><p>' + data.strategy + '</p></div></div>'; return; }
+            if (data.error){ out.innerHTML = '<div class="empty-state">AI Error: ' + data.error + '</div>'; return; }
+            out.innerHTML = '<div class="empty-state">No recommendations returned.</div>';
+        } catch (e){ out.innerHTML = '<div class="empty-state">AI request failed.</div>'; }
+    }
+
+    // Robust attachment for AI button: visual feedback + keyboard support
+    (function(){
+        const aiBtn = document.getElementById('aiFunnel');
+        if (!aiBtn) return;
+        try { aiBtn.style.pointerEvents = 'auto'; aiBtn.style.zIndex = 1000; } catch(e){}
+        aiBtn.addEventListener('click', async function(){
+            console.log('AI Suggest robust handler clicked');
+            if (aiBtn.disabled) return;
+            const orig = aiBtn.innerText;
+            aiBtn.disabled = true;
+            aiBtn.innerText = 'Fetching...';
+            try { await triggerAiFunnel(); } catch(e) { console.error('AI trigger error', e); }
+            aiBtn.disabled = false;
+            aiBtn.innerText = orig;
+        });
+        aiBtn.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aiBtn.click(); } });
+    })();
+
+
+    // Timeline with 7-day moving average and export
+    {% if panel == 'timeline' %}
+    (function(){
+        const ctx = document.getElementById('caseTimeline');
+        const labels = JSON.parse(document.getElementById('ct_labels').value || '[]');
+        const values = JSON.parse(document.getElementById('ct_values').value || '[]');
+        if (!ctx || !HAS_CHART) {
+            if (!HAS_CHART && ctx) ctx.parentElement.insertAdjacentHTML('beforeend', '<div class="empty-state">Chart.js not loaded — timeline unavailable.</div>');
+            return;
+        }
+
+        function movingAverage(arr, windowSize=7){
+            const res = []; for (let i=0;i<arr.length;i++){ const start = Math.max(0,i-windowSize+1); const slice = arr.slice(start,i+1); const avg = slice.reduce((a,b)=>a+Number(b),0)/slice.length; res.push(Number(avg.toFixed(2))); } return res;
+        }
+
+        const ma = movingAverage(values, 7);
+
+        const timelineChart = new Chart(ctx, {
+            type:'line',
+            data:{ labels: labels, datasets:[
+                { label: '7-day avg', data: ma, borderColor:'#7c3aed', borderWidth:2, pointRadius:0, tension:0.25, fill:false },
+                { label: 'Daily', data: values, borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.06)', fill:true, pointRadius:2, borderWidth:1 }
+            ]},
+            options:{ responsive:false, maintainAspectRatio:false, animation:false, plugins:{ legend:{ position:'bottom' }, tooltip:{ mode:'index', intersect:false }, datalabels:{ display:false } }, scales:{ x:{ ticks:{ maxRotation:0, autoSkip:true } }, y:{ beginAtZero:true } } }
+        });
+
+        // Export button (if present)
+        const exportBtn = document.getElementById('exportTimeline');
+        if (exportBtn){ exportBtn.addEventListener('click', ()=>{ const url = timelineChart.toBase64Image(); const a = document.createElement('a'); a.href = url; a.download='case_timeline.png'; a.click(); }); }
+    })();
+    {% endif %}
+
+    // Breakdown: stacked horizontal bar (default) + donut toggle
+    {% if panel == 'breakdown' %}
+    (function(){
+        const labels = JSON.parse(document.getElementById('case_break_labels').value || '[]');
+        const values = JSON.parse(document.getElementById('case_break_values').value || '[]');
+        const colors = ['#ef4444','#f97316','#facc15','#10b981','#60a5fa'];
+
+        // Build dataset arrays for stacked bar (percent)
+        const total = values.reduce((a,b)=>a+b,0) || 1;
+        const percents = values.map(v => Math.round((v / total) * 100));
+
+        const barCtx = document.getElementById('caseBreakdownBar');
+        if (!barCtx || !HAS_CHART) { if (!HAS_CHART && barCtx) barCtx.parentElement.insertAdjacentHTML('beforeend', '<div class="empty-state">Chart.js not loaded — breakdown unavailable.</div>'); return; }
+
+        // Helper: generate bar datasets (one dataset per bucket) with percent values
+        function makeBarDatasets() {
+            return labels.map((label, i) => ({
+                label: label,
+                data: [percents[i]],
+                backgroundColor: colors[i%colors.length],
+                datalabels: { anchor: 'center', color: '#fff', font: { weight: '600', size: 11 } }
+            }));
+        }
+
+        // Center text plugin for bar chart (shows total cases above bar)
+        const barCenterPlugin = {
+            id: 'barCenter',
+            afterDraw(chart) {
+                const { ctx } = chart;
+                ctx.save();
+                const x = chart.scales.x; const y = chart.scales.y;
+                const cx = (x.left + x.right) / 2;
+                const cy = y.top - 14;
+                ctx.fillStyle = '#93c5fd'; ctx.font = '12px Inter, sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('Total: ' + total, cx, cy);
+                ctx.restore();
+            }
+        };
+
+        // Create bar chart (stacked horizontal)
+        let barChart = null;
+        function renderBar() {
+            if (!barCtx) return;
+            try {
+                if (barChart) barChart.destroy();
+                const opts = {
+                    indexAxis: 'y', responsive:true, maintainAspectRatio:false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth:12, padding:8 } } },
+                    scales: { x: { stacked: true, max: 100, ticks: { callback: v => v + '%' } }, y: { stacked:true, display:false } }
+                };
+                if (HAS_DATALABELS) opts.plugins.datalabels = { formatter: (value) => value + '%', color:'#fff' };
+                barChart = new Chart(barCtx, { type: 'bar', data: { labels: ['All Cases'], datasets: makeBarDatasets() }, options: opts, plugins: pluginsWith(barCenterPlugin) });
+            } catch (err) {
+                console.error('Error rendering breakdown bar chart:', err);
+                if (barCtx) { barCtx.style.display = 'none'; }
+            }
+        }
+
+        const exportBtn = document.getElementById('exportBreak');
+        exportBtn.addEventListener('click', ()=>{
+            if (barChart) { const url = barChart.toBase64Image(); const a = document.createElement('a'); a.href = url; a.download='case_breakdown_bar.png'; a.click(); }
+        });
+
+        // Initial render default to bar
+        renderBar();
+    })();
+    {% endif %}
+
+    // Workflow (show counts + percent labels, export)
+    {% if panel == 'workflow' %}
+    (function(){
+        const sankeyCanvas = document.getElementById('workflowSankey');
+        const barCtx = document.getElementById('workflowChart');
+        const wfLabels = {{ analytics.workflow['labels']|tojson }};
+        const wfData = {{ analytics.workflow['values']|tojson }};
+        if ((!sankeyCanvas && !barCtx) || !HAS_CHART) { if (!HAS_CHART && (sankeyCanvas||barCtx)) (sankeyCanvas||barCtx).parentElement.insertAdjacentHTML('beforeend','<div class="empty-state">Chart.js not loaded — workflow unavailable.</div>'); return; }
+
+        // Build simple sequential flow links between stages (approximation)
+        const sankeyLinks = [];
+        for (let i=0;i<wfLabels.length-1;i++){
+            sankeyLinks.push({ from: wfLabels[i], to: wfLabels[i+1], flow: wfData[i+1] });
+        }
+
+        try {
+            // Try Sankey first; will throw if plugin missing
+            if (sankeyCanvas) {
+                const skCtx = sankeyCanvas.getContext('2d');
+                sankeyCanvas.style.display = 'block';
+                if (barCtx) barCtx.style.display = 'none';
+                const sankeyChart = new Chart(skCtx, {
+                    type: 'sankey',
+                    data: { datasets: [{ label: 'Workflow', data: sankeyLinks, colorFrom: '#60a5fa', colorTo: '#10b981' }] },
+                    options: { responsive:true, maintainAspectRatio:false, plugins: { legend: { display: false } } }
+                });
+
+                const exportBtn = document.getElementById('exportWorkflow');
+                if (exportBtn) exportBtn.addEventListener('click', ()=>{ const url = sankeyCanvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download='workflow_sankey.png'; a.click(); });
+                return;
+            }
+        } catch (err) {
+            console.warn('Sankey rendering failed, falling back to bar:', err);
+        }
+
+        // Fallback: horizontal bar chart
+        if (barCtx) {
+            barCtx.style.display = 'block';
+            try {
+                const wfMaxBar = Math.max(12, Math.min(40, Math.floor(320 / Math.max(1, wfLabels.length))));
+                const total = wfData.reduce((a,b)=>a+b,0) || 1;
+                const workflowChart = new Chart(barCtx, {
+                    type:'bar',
+                    data:{ labels: wfLabels, datasets:[{ label:'Cases', data: wfData, backgroundColor: ['#60a5fa','#7c3aed','#06b6d4','#f97316','#10b981'] }] },
+                    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, elements:{ bar:{ borderRadius:6, maxBarThickness: wfMaxBar } }, plugins:{ legend:{ display:false }, datalabels:{ formatter: (value, ctx)=>{ const pct = Math.round((value/total)*100); return value + ' (' + pct + '%)'; }, color:'#fff', anchor:'end', align:'end', offset:6 } }, scales:{ x:{ beginAtZero:true }, y:{ ticks:{ autoSkip:false } } } },
+                    plugins: pluginsWith()
+                });
+
+                // export
+                const exportBtn = document.getElementById('exportWorkflow');
+                if (exportBtn) exportBtn.addEventListener('click', ()=>{ const url = workflowChart.toBase64Image(); const a = document.createElement('a'); a.href = url; a.download='workflow.png'; a.click(); });
+            } catch (err) {
+                console.error('Workflow bar render error:', err);
+            }
+        }
+    })();
+    {% endif %}
+
+    // Funnel (render + exports) - Chart.js-only implementation
+    {% if panel == 'funnel' %}
+    (function(){
+        const canvas = document.getElementById('funnelChartCanvas');
+        if (!canvas || !HAS_CHART) {
+            if (!HAS_CHART && canvas) canvas.parentElement.insertAdjacentHTML('beforeend','<div class="empty-state">Chart.js not loaded — funnel unavailable.</div>');
+            return;
+        }
+
+        const labels = ['Analyzed','Found','Created'];
+        const values = [{{ analytics.funnel.analyzed }}, {{ analytics.funnel.found }}, {{ analytics.funnel.created }}];
+        const colors = ['#60a5fa','#10b981','#f97316'];
+        const total = values[0] || 1;
+
+        try {
+            const ctx = canvas.getContext('2d');
+            let funnelChart = null;
+            funnelChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ data: values, backgroundColor: colors }] },
+                options: { responsive:false, maintainAspectRatio:false, animation:false, plugins:{ legend:{ display:false }, datalabels:{ formatter:(v)=> v + ' (' + Math.round((v/total)*100) + '%)', color:'#fff', anchor:'end', align:'end' } }, scales:{ y:{ beginAtZero:true } } },
+                plugins: pluginsWith()
+            });
+
+// Click behavior: filter dashboard by stage and remember last clicked stage (also update global marker)
+            let lastClickedFunnelStage = null;
+            canvas.addEventListener('click', function(evt){
+                const points = funnelChart.getElementsAtEventForMode(evt,'nearest',{intersect:true}, false);
+                if (points && points.length){
+                    const idx = points[0].index;
+                    const label = funnelChart.data.labels[idx];
+                    lastClickedFunnelStage = label.toLowerCase();
+                    window._lastClickedFunnelStage = lastClickedFunnelStage;
+                    window.location.href = '/?filter_stage=' + encodeURIComponent(label.toLowerCase());
+                }
+            });
+
+            const exportChartBtn = document.getElementById('exportFunnelChart');
+            if (exportChartBtn) exportChartBtn.addEventListener('click', ()=>{ if (funnelChart){ const url = funnelChart.toBase64Image(); const a = document.createElement('a'); a.href = url; a.download='funnel_chart.png'; a.click(); } });
+
+            const exportBtn = document.getElementById('exportFunnel');
+            if (exportBtn){ exportBtn.addEventListener('click', ()=>{ html2canvas(canvas.parentElement).then(canvasEl=>{ const url = canvasEl.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download='threat_funnel.png'; a.click(); }); }); }
+
+            // AI Suggest handler (uses last clicked stage if present)
+            const aiBtn = document.getElementById('aiFunnel');
+            if (aiBtn){ aiBtn.addEventListener('click', async ()=>{
+                const out = document.getElementById('funnelAISuggestions');
+                if (!AI_ENABLED){ out.innerHTML = '<div class="empty-state">AI is not enabled on this instance. Set OPENAI_API_KEY to enable AI suggestions.</div>'; return; }
+                const stage = lastClickedFunnelStage || null;
+                out.innerHTML = '<div class="text-dim">Fetching AI suggestions...</div>';
+                try{
+                    const res = await fetch('/ai/insights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ panel: 'funnel', stage: stage }) });
+                    const data = await res.json();
+                    if (data.recommendations){
+                        const r = data.recommendations;
+                        let html = '';
+                        html += '<div class="ai-card">';
+                        html += '<div class="ai-card-header"><h4>Recommendations<span class="ai-badge">' + (r.priority ? r.priority.toUpperCase() : '') + '</span></h4></div>';
+                        if (r.immediate_actions && r.immediate_actions.length){
+                            html += '<div><strong>Immediate Actions</strong><ul class="ai-list">';
+                            r.immediate_actions.forEach(a => { html += '<li>' + a + '</li>'; });
+                            html += '</ul></div>';
+                        }
+                        if (r.upgrade_suggestions && r.upgrade_suggestions.length){
+                            html += '<div><strong>Upgrade Suggestions</strong><ul class="ai-list">';
+                            r.upgrade_suggestions.forEach(u => { html += '<li>' + u + '</li>'; });
+                            html += '</ul></div>';
+                        }
+                        if (r.strategy){ html += '<div><strong>Strategy</strong><p>' + (r.strategy || '') + '</p></div>'; }
+                        html += '<div class="ai-actions"><button id="copyAiJson" class="btn-small">Copy JSON</button></div>';
+                        html += '</div>';
+                        out.innerHTML = html;
+                        const copyBtn = document.getElementById('copyAiJson');
+                        if (copyBtn){ copyBtn.addEventListener('click', ()=>{ navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(()=>{ copyBtn.innerText = 'Copied'; setTimeout(()=>{ copyBtn.innerText = 'Copy JSON'; }, 1200); }).catch(()=>{ alert('Copy failed'); }); }); }
+                    }
+                    else if (data.strategy){
+                        out.innerHTML = '<div class="ai-card"><div class="ai-card-header"><h4>Strategy</h4></div><div><p>' + data.strategy + '</p></div></div>';
+                    }
+                    else if (data.error){ out.innerHTML = '<div class="empty-state">AI Error: ' + data.error + '</div>'; }
+                    else { out.innerHTML = '<div class="empty-state">No recommendations returned.</div>'; }
+                } catch(e){ out.innerHTML = '<div class="empty-state">AI request failed.</div>'; }
+            }); }
+        } catch (err) {
+            console.error('Funnel chart error', err);
+            canvas.parentElement.insertAdjacentHTML('beforeend','<div class="empty-state">Unable to render funnel chart.</div>');
+        }
+    })();
+
+    // Ensure AI handler attaches even if chart initialization failed
+    (function(){
+        const aiBtn = document.getElementById('aiFunnel');
+        if (!aiBtn) return;
+        if (aiBtn.dataset.handlerAttached) return;
+        aiBtn.dataset.handlerAttached = '1';
+        aiBtn.addEventListener('click', async ()=>{
+            const out = document.getElementById('funnelAISuggestions');
+            if (!AI_ENABLED){ out.innerHTML = '<div class="empty-state">AI is not enabled on this instance. Set OPENAI_API_KEY to enable AI suggestions.</div>'; return; }
+            out.innerHTML = '<div class="text-dim">Fetching AI suggestions...</div>';
+            try {
+                const res = await fetch('/ai/insights', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({panel:'funnel', stage:null}) });
+                const data = await res.json();
+                if (data.recommendations){
+                    const r = data.recommendations;
+                    let html = '';
+                    html += '<div class="ai-card">';
+                    html += '<div class="ai-card-header"><h4>Recommendations<span class="ai-badge">' + (r.priority ? r.priority.toUpperCase() : '') + '</span></h4></div>';
+                    if (r.immediate_actions && r.immediate_actions.length){
+                        html += '<div><strong>Immediate Actions</strong><ul class="ai-list">';
+                        r.immediate_actions.forEach(a => { html += '<li>' + a + '</li>'; });
+                        html += '</ul></div>';
+                    }
+                    if (r.upgrade_suggestions && r.upgrade_suggestions.length){
+                        html += '<div><strong>Upgrade Suggestions</strong><ul class="ai-list">';
+                        r.upgrade_suggestions.forEach(u => { html += '<li>' + u + '</li>'; });
+                        html += '</ul></div>';
+                    }
+                    if (r.strategy){ html += '<div><strong>Strategy</strong><p>' + (r.strategy || '') + '</p></div>'; }
+                    html += '<div class="ai-actions"><button id="copyAiJson2" class="btn-small">Copy JSON</button></div>';
+                    html += '</div>';
+                    out.innerHTML = html;
+                    const copyBtn = document.getElementById('copyAiJson2');
+                    if (copyBtn){ copyBtn.addEventListener('click', ()=>{ navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(()=>{ copyBtn.innerText = 'Copied'; setTimeout(()=>{ copyBtn.innerText = 'Copy JSON'; }, 1200); }).catch(()=>{ alert('Copy failed'); }); }); }
+                } else if (data.strategy){ out.innerHTML = '<div class="ai-card"><div class="ai-card-header"><h4>Strategy</h4></div><div><p>' + data.strategy + '</p></div></div>'; }
+                else if (data.error){ out.innerHTML = '<div class="empty-state">AI Error: ' + data.error + '</div>'; }
+                else { out.innerHTML = '<div class="empty-state">No recommendations returned.</div>'; }
+            } catch (e) { out.innerHTML = '<div class="empty-state">AI request failed.</div>'; }
+        });
+    })();
+    {% endif %}
+</script>
+{% endblock %}

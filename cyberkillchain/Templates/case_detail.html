@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Case Detail</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main">
+        <section class="card">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+            <h3>Case: {{ case.title }}</h3>
+            <p class="text-dim">Status: {{ case.status }} • Severity: {{ case.severity }}</p>
+            <div class="case-actions">
+                <a class="btn-search" href="{{ url_for('export_case', case_id=case.id) }}">Export Case JSON</a>
+                <a class="btn-search" href="{{ url_for('case_postmortem', case_id=case.id) }}">Post-Mortem</a>
+                <button id="ai-summary-btn" class="btn-search" type="button">AI Summary</button>
+                <button id="ai-root-btn" class="btn-search" type="button">Root Cause</button>
+                <button id="ai-triage-btn" class="btn-search" type="button">Triage Score</button>
+            </div>
+            <pre id="ai-output" class="summary-text text-dim"></pre>
+            <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}" class="case-form">
+                <textarea name="description">{{ case.description or '' }}</textarea>
+                <select name="status">
+                    <option value="Open" {% if case.status == 'Open' %}selected{% endif %}>Open</option>
+                    <option value="Investigating" {% if case.status == 'Investigating' %}selected{% endif %}>Investigating</option>
+                    <option value="Mitigated" {% if case.status == 'Mitigated' %}selected{% endif %}>Mitigated</option>
+                    <option value="Closed" {% if case.status == 'Closed' %}selected{% endif %}>Closed</option>
+                    <option value="Escalated" {% if case.status == 'Escalated' %}selected{% endif %}>Escalated</option>
+                </select>
+                <select name="assignee_id">
+                    <option value="">Assign to</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}" {% if case.assignee_id == u.id %}selected{% endif %}>{{ u.username }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" name="sla_hours" min="1" value="{{ case.sla_hours }}">
+                <button type="submit" class="btn-search">Update Case</button>
+            </form>
+            <form method="POST" action="{{ url_for('run_case_playbook', case_id=case.id) }}" class="inline-form">
+                {% if sim %}
+                <input type="hidden" name="attack_type" value="{{ sim.attack_type }}">
+                {% else %}
+                <select name="attack_type">
+                    <option value="">Attack type</option>
+                    <option>Phishing</option>
+                    <option>Malware</option>
+                    <option>Ransomware</option>
+                    <option>DDoS</option>
+                    <option>Supply Chain</option>
+                    <option>APT</option>
+                    <option>Insider Threat</option>
+                </select>
+                {% endif %}
+                <button type="submit" class="btn-search">Run Playbook</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h3>Evidence Attachments</h3>
+            <form method="POST" action="{{ url_for('add_case_attachment', case_id=case.id) }}" class="case-form" enctype="multipart/form-data">
+                <input type="file" name="file">
+                <button type="submit" class="btn-search">Upload Evidence</button>
+            </form>
+            {% if attachments %}
+            <div class="note-list">
+                {% for a in attachments %}
+                <div class="note-item">
+                    <small class="text-dim">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <p><a href="{{ url_for('download_case_attachment', attachment_id=a.id) }}">{{ a.filename }}</a> ({{ a.size_bytes }} bytes)</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-dim">No evidence uploaded.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h3>Compliance Checklist</h3>
+            {% if checklist %}
+            <table>
+                <thead>
+                    <tr><th>Framework</th><th>Item</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for c in checklist %}
+                    <tr>
+                        <td>{{ c.framework }}</td>
+                        <td>{{ c.item }}</td>
+                        <td>{{ c.status }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('update_case_checklist', case_id=case.id) }}" class="inline-form">
+                                <input type="hidden" name="item_id" value="{{ c.id }}">
+                                <input type="hidden" name="status" value="{{ 'open' if c.status == 'done' else 'done' }}">
+                                <button type="submit" class="btn-search">Toggle</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No checklist items.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h3>Chain of Custody</h3>
+            {% if events %}
+            <div class="note-list">
+                {% for e in events %}
+                <div class="note-item">
+                    <small class="text-dim">{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <p><strong>{{ e.action }}</strong> {{ e.meta | tojson }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-dim">No timeline events yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h3>Notes</h3>
+            <form method="POST" action="{{ url_for('add_case_note', case_id=case.id) }}" class="case-form">
+                <textarea name="note" placeholder="Add a note"></textarea>
+                <button type="submit" class="btn-search">Add Note</button>
+            </form>
+            {% if notes %}
+            <div class="note-list">
+                {% for n in notes %}
+                <div class="note-item">
+                    <small class="text-dim">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <p>{{ n.note }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-dim">No notes yet.</p>
+            {% endif %}
+        </section>
+
+        <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+    </div>
+    <script>
+        const output = document.getElementById('ai-output');
+        const summaryBtn = document.getElementById('ai-summary-btn');
+        const rootBtn = document.getElementById('ai-root-btn');
+        const triageBtn = document.getElementById('ai-triage-btn');
+
+        async function callAi(url) {
+            output.textContent = 'Loading...';
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ case_id: {{ case.id }} })
+            });
+            const data = await resp.json();
+            if (data.summary) output.textContent = data.summary;
+            else if (data.analysis) output.textContent = data.analysis;
+            else if (data.triage) output.textContent = JSON.stringify(data.triage, null, 2);
+            else output.textContent = 'No output.';
+        }
+
+        summaryBtn.addEventListener('click', () => callAi('/ai/case_summary'));
+        rootBtn.addEventListener('click', () => callAi('/ai/root_cause'));
+        triageBtn.addEventListener('click', () => callAi('/ai/triage_score'));
+    </script>
+</body>
+</html>
+
+

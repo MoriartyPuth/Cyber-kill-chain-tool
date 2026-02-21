@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threat Intel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.css" rel="stylesheet">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Indicators</h3>
+            {% if indicators %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                        <th>Confidence</th>
+                        <th>Count</th>
+                        <th>Last Seen</th>
+                        <th>Expires</th>
+                        <th>Last Attack</th>
+                        <th>Last Stage</th>
+                        <th>Enrichment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in indicators %}
+                    <tr>
+                        <td>{{ i.indicator_type }}</td>
+                        <td>{{ i.value }}</td>
+                        <td>{{ i.status }}</td>
+                        <td>{{ '%.2f'|format(i.confidence or 0) }}</td>
+                        <td>{{ i.count }}</td>
+                        <td>{{ i.last_seen.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ i.expires_at.strftime('%Y-%m-%d') if i.expires_at else '-' }}</td>
+                        <td>{{ i.last_seen_attack or '-' }}</td>
+                        <td>{{ i.last_seen_stage or '-' }}</td>
+                        <td><pre class="summary-text">{{ i.enrichment | tojson }}</pre></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No indicators yet.</p>
+            {% endif %}
+            <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+        </section>
+
+        <section class="card">
+            <h3>Indicator Relations</h3>
+            {% if relations %}
+            <table>
+                <thead>
+                    <tr><th>Indicator</th><th>Relation</th><th>Created</th></tr>
+                </thead>
+                <tbody>
+                    {% for r in relations %}
+                    <tr>
+                        <td>{{ r.indicator_id }}</td>
+                        <td>{{ r.relation_type }} {{ r.relation_id }}</td>
+                        <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No relations yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h3>Graph View (JSON)</h3>
+            <button id="load-graph" class="btn-search">Load Graph</button>
+            <div id="graph-container" style="height: 360px; border: 1px solid #e5e7eb; border-radius: 6px; margin-top: 10px;"></div>
+            <pre id="graph-output" class="summary-text text-dim">Click "Load Graph" to view nodes and edges.</pre>
+        </section>
+    </div>
+    <script>
+        const btn = document.getElementById('load-graph');
+        const out = document.getElementById('graph-output');
+        const container = document.getElementById('graph-container');
+        if (btn) {
+            btn.addEventListener('click', async () => {
+                out.textContent = 'Loading...';
+                const resp = await fetch('/api/intel/graph');
+                const data = await resp.json();
+                out.textContent = JSON.stringify(data, null, 2);
+                if (container && window.vis) {
+                    const nodes = new vis.DataSet((data.nodes || []).map(n => ({ id: n.id, label: n.label })));
+                    const edges = new vis.DataSet((data.edges || []).map(e => ({ from: e.from, to: e.to, label: e.label })));
+                    const network = new vis.Network(container, { nodes, edges }, {
+                        layout: { improvedLayout: true },
+                        physics: { stabilization: true },
+                        nodes: { shape: 'dot', size: 12 },
+                        edges: { arrows: 'to' }
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

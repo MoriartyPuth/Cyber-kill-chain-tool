@@ -1,0 +1,90 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threat Discovery</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Threat Discovery</h3>
+            <form method="POST" action="{{ url_for('run_threat_summary') }}" class="inline-form">
+                <button type="submit" class="btn-search">Generate Summary</button>
+            </form>
+            <a href="{{ url_for('threat_advisory_page') }}" class="btn-run" style="margin-left: 8px; text-decoration:none;">Open Threat Advisory</a>
+        </section>
+
+        <section class="card">
+            <h3>Recent Summaries</h3>
+            {% if summaries %}
+                {% for s in summaries %}
+                <div class="note-item">
+                    <small class="text-dim">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <pre class="summary-text">{{ s.summary }}</pre>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-dim">No summaries yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h3>Recent Discoveries</h3>
+            {% if discoveries %}
+            <table>
+                <thead>
+                    <tr><th>Time</th><th>Source</th><th>Sample</th></tr>
+                </thead>
+                <tbody>
+                    {% for d in discoveries %}
+                    <tr>
+                        <td>{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ d.source }}</td>
+                        <td><pre class="summary-text">{{ d.sample | tojson }}</pre></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No discoveries yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h3>Learned Signatures</h3>
+            {% if signatures %}
+            <table>
+                <thead>
+                    <tr><th>Fingerprint</th><th>Count</th><th>Status</th><th>Last Seen</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in signatures %}
+                    <tr>
+                        <td><code>{{ s.fingerprint[:16] }}</code></td>
+                        <td>{{ s.count }}</td>
+                        <td>{{ s.status }}</td>
+                        <td>{{ s.last_seen.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('mark_threat', signature_id=s.id) }}" class="inline-form">
+                                <select name="status">
+                                    <option value="new" {% if s.status == 'new' %}selected{% endif %}>new</option>
+                                    <option value="reviewed" {% if s.status == 'reviewed' %}selected{% endif %}>reviewed</option>
+                                    <option value="ignored" {% if s.status == 'ignored' %}selected{% endif %}>ignored</option>
+                                </select>
+                                <button type="submit" class="btn-search">Update</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No signatures yet.</p>
+            {% endif %}
+        </section>
+
+        <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+    </div>
+</body>
+</html>

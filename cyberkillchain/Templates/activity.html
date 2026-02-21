@@ -1,0 +1,33 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Insights</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Team Activity</h3>
+            <table>
+                <thead>
+                    <tr><th>User</th><th>Simulations</th><th>Avg Score</th><th>Cases Created</th><th>Assigned</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td>{{ r.user.username }}</td>
+                        <td>{{ r.sim_count }}</td>
+                        <td>{{ r.avg_score }}%</td>
+                        <td>{{ r.cases_created }}</td>
+                        <td>{{ r.cases_assigned }}</td>
+                        <td>{{ r.notes }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+        </section>
+    </div>
+</body>
+</html>

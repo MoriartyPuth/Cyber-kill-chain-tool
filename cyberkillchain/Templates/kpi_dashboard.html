@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KPI Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="elastic-ui eps-dark-page">
+    <div class="eui-topbar">
+        <div class="eui-brand">Threat Intelligent Dashboard</div>
+        <div class="eui-global-search">
+            <input type="text" placeholder="Find apps, content, and more..." aria-label="Global search">
+        </div>
+        <div class="eui-top-actions">
+            <a href="{{ url_for('dashboard') }}" class="eui-action-link">Dashboard</a>
+            <a href="{{ url_for('user_profile') }}" class="eui-user-pill">{{ (user.username[:1] if user else 'G')|upper }}</a>
+        </div>
+    </div>
+
+    <div class="eui-subnav">
+        <a href="{{ url_for('dashboard') }}" class="eui-subnav-item">Security</a>
+        <a href="{{ url_for('eps_dashboard_page') }}" class="eui-subnav-item">EPS Dashboard</a>
+        <a href="{{ url_for('kpi_dashboard_page') }}" class="eui-subnav-item active">KPI Dashboard</a>
+    </div>
+
+    <main class="main">
+        <section class="card">
+            <h3>KPI Dashboard</h3>
+            <div class="insight-buttons">
+                <a class="btn-search panel-link" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+                <a class="btn-search panel-link" href="{{ url_for('eps_dashboard_page') }}">Back to EPS Dashboard</a>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <div class="kpi-tabs">
+                <span class="kpi-tab active">General</span>
+                <span class="kpi-tab">MXDR</span>
+            </div>
+            <div class="eps-kpi-grid mt-4">
+                <div class="severity-card">
+                    <small>Rows</small>
+                    <h2>{{ totals.rows }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Total Alarm</small>
+                    <h2>{{ totals.alarm }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Total Correlation</small>
+                    <h2>{{ totals.correlation }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Incident Count</small>
+                    <h2>{{ totals.incidents }}</h2>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <div class="kpi-table-wrap">
+                <table class="kpi-wide-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Company</th>
+                            <th rowspan="2">Branch</th>
+                            <th colspan="2">Alert Count</th>
+                            <th colspan="4">Alert</th>
+                            <th colspan="3">Usecase Triggered</th>
+                            <th colspan="2">Incident Count</th>
+                        </tr>
+                        <tr>
+                            <th>MTTD (min)</th>
+                            <th>MTTR (hr)</th>
+                            <th>Alarm</th>
+                            <th>Correlation</th>
+                            <th>Threat</th>
+                            <th>FP Count</th>
+                            <th>Alarm</th>
+                            <th>Correlation</th>
+                            <th>Log</th>
+                            <th>Alarm</th>
+                            <th>Correlation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in kpi_rows %}
+                        <tr>
+                            <td>{{ row.company }}</td>
+                            <td>{{ row.branch }}</td>
+                            <td>{{ row.mttd_min }}</td>
+                            <td>{{ row.mttr_hr }}</td>
+                            <td>{{ row.alarm }}</td>
+                            <td>{{ row.correlation }}</td>
+                            <td>{{ row.threat }}</td>
+                            <td>{{ row.fp_count }}</td>
+                            <td>{{ row.use_alarm }}</td>
+                            <td>{{ row.use_correlation }}</td>
+                            <td>{{ row.use_log }}</td>
+                            <td>{{ row.inc_alarm }}</td>
+                            <td>{{ row.inc_correlation }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not kpi_rows %}
+                        <tr><td colspan="13" class="text-dim">No KPI data yet. Run simulations or ingest live logs first.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

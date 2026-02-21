@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Profile - Cyber Kill Chain Simulator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="profile-page">
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Profile Menu</h2>
+            <nav class="profile-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">← Back to Dashboard</a>
+                <a href="{{ url_for('user_profile') }}" class="nav-link active">📊 Statistics</a>
+                <a href="{{ url_for('logout') }}" class="nav-link logout">🚪 Logout</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <header class="top-header">
+                <h1>User Profile</h1>
+            </header>
+
+            {% if user %}
+            <!-- User Information -->
+            <div class="card">
+                <h3>Account Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <small>Username</small>
+                        <p>{{ user.username }}</p>
+                    </div>
+                    <div class="info-item">
+                        <small>Email</small>
+                        <p>{{ user.email }}</p>
+                    </div>
+                    <div class="info-item">
+                        <small>Current Budget</small>
+                        <p class="highlight">${{ "{:,}".format(user.budget) }}</p>
+                    </div>
+                    <div class="info-item">
+                        <small>Member Since</small>
+                        <p>{{ user.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Summary -->
+            {% if analytics %}
+            <div class="card">
+                <h3>📊 Performance Metrics</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <small>Total Simulations</small>
+                        <h2>{{ analytics.total_simulations }}</h2>
+                    </div>
+                    <div class="metric-card">
+                        <small>Average Detection Rate</small>
+                        <h2 class="text-accent">{{ "%.1f"|format(analytics.average_score) }}% {% if analytics.ai_insights %}<span class="ai-badge">🤖 AI</span>{% endif %}</h2>
+                    </div>
+                    <div class="metric-card">
+                        <small>Best Score</small>
+                        <h2 class="text-green">{{ analytics.max_score }}%</h2>
+                    </div>
+                    <div class="metric-card">
+                        <small>Total Invested</small>
+                        <h2 class="text-orange">${{ "{:,}".format(analytics.total_invested) }}</h2>
+                    </div>
+                </div>
+
+                <!-- Attack Type Breakdown -->
+                {% if analytics.attack_breakdown %}
+                <div class="breakdown-chart" style="margin-top: 30px;">
+                    <h4>Defense Effectiveness by Attack Type</h4>
+                    <canvas id="attackBreakdownChart" height="60"></canvas>
+                </div>
+                {% endif %}
+
+                <!-- Defense Insights -->
+                {% if analytics.ai_insights %}
+                <div class="ai-insights-card">
+                    <h4>🤖 Strategic Insights</h4>
+                    <p>{{ analytics.ai_insights }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Strongest/Weakest Defense -->
+                {% if analytics.strongest_defense or analytics.weakest_defense %}
+                <div class="defense-summary">
+                    <div class="summary-item">
+                        <small>Strongest Defense</small>
+                        <p class="text-green">{{ analytics.strongest_defense or 'Not determined' }}</p>
+                    </div>
+                    <div class="summary-item">
+                        <small>Weakest Defense</small>
+                        <p class="text-red">{{ analytics.weakest_defense or 'Not determined' }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Recent Simulations -->
+            {% if recent_simulations %}
+            <div class="card">
+                <h3>Recent Simulations</h3>
+                <table class="simulations-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Attack Type</th>
+                            <th>Detection Rate</th>
+                            <th>Report</th>
+                            {% if ai_enabled %}<th>AI Analysis</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sim in recent_simulations %}
+                        <tr>
+                            <td>{{ sim.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td><strong>{{ sim.attack_type }}</strong></td>
+                            <td class="{{ 'text-green' if sim.detection_score > 60 else 'text-red' }}">
+                                {{ sim.detection_score }}%
+                            </td>
+                            <td>
+                                <a href="/report/{{ sim.id }}" class="btn-small">View</a>
+                            </td>
+                            {% if ai_enabled %}
+                            <td>
+                                {% if sim.threat_narrative %}
+                                    <span class="ai-indicator">🤖 Available</span>
+                                {% else %}
+                                    <span class="text-dim">—</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="card empty-state">
+                <p>Please log in to view your profile.</p>
+                <a href="{{ url_for('login') }}" class="btn-run">Login</a>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <script>
+        {% if analytics and analytics.attack_breakdown %}
+        // Attack breakdown chart
+        const breakdownCtx = document.getElementById('attackBreakdownChart');
+        if (breakdownCtx) {
+            new Chart(breakdownCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ analytics.attack_breakdown.keys()|list|tojson }},
+                    datasets: [{
+                        label: 'Avg Detection Rate %',
+                        data: {{ analytics.attack_breakdown.values()|list|tojson }},
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#38bdf8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+        {% endif %}
+    </script>
+</body>
+</html>

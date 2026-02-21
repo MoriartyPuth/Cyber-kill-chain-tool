@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Log History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Live Log History</h3>
+            <form method="GET" action="{{ url_for('live_history_view') }}" class="inline-form">
+                <input type="number" name="limit" min="20" max="500" value="{{ limit }}" placeholder="Limit">
+                <input type="number" name="minutes" min="1" max="10080" value="{{ minutes }}" placeholder="Minutes window">
+                <select name="attack">
+                    <option value="" {% if not attack %}selected{% endif %}>All Attacks</option>
+                    <option value="phishing" {% if attack == 'phishing' %}selected{% endif %}>Phishing</option>
+                    <option value="malware" {% if attack == 'malware' %}selected{% endif %}>Malware</option>
+                    <option value="ransomware" {% if attack == 'ransomware' %}selected{% endif %}>Ransomware</option>
+                    <option value="ddos" {% if attack == 'ddos' %}selected{% endif %}>DDoS</option>
+                    <option value="supply chain" {% if attack == 'supply chain' %}selected{% endif %}>Supply Chain</option>
+                    <option value="apt" {% if attack == 'apt' %}selected{% endif %}>APT</option>
+                    <option value="insider threat" {% if attack == 'insider threat' %}selected{% endif %}>Insider Threat</option>
+                </select>
+                <select name="status">
+                    <option value="" {% if not status %}selected{% endif %}>All Status</option>
+                    <option value="detected" {% if status == 'detected' %}selected{% endif %}>Detected</option>
+                    <option value="missed" {% if status == 'missed' %}selected{% endif %}>Missed</option>
+                </select>
+                <select name="severity">
+                    <option value="" {% if not severity %}selected{% endif %}>All Severity</option>
+                    <option value="low" {% if severity == 'low' %}selected{% endif %}>Low</option>
+                    <option value="medium" {% if severity == 'medium' %}selected{% endif %}>Medium</option>
+                    <option value="high" {% if severity == 'high' %}selected{% endif %}>High</option>
+                    <option value="critical" {% if severity == 'critical' %}selected{% endif %}>Critical</option>
+                </select>
+                <button type="submit" class="btn-search">Apply</button>
+                <a href="{{ url_for('live_history_view') }}" class="btn-run">Reset</a>
+            </form>
+            {% if error %}
+            <p class="text-dim">Load failed: {{ error }}</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h3>Entries ({{ rows|length }})</h3>
+            {% if rows %}
+            <table>
+                <thead>
+                    <tr><th>Time (UTC)</th><th>Attack</th><th>Stage</th><th>Status</th><th>Severity</th><th>Tool</th><th>Description</th><th>Raw</th></tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ row.created_at.strftime('%Y-%m-%d %H:%M:%S') if row.created_at else '' }}</td>
+                        <td>{{ row.attack }}</td>
+                        <td>{{ row.stage }}</td>
+                        <td>{{ row.status }}</td>
+                        <td>{{ row.severity or '-' }}</td>
+                        <td>{{ row.tool or '-' }}</td>
+                        <td>{{ row.description }}</td>
+                        <td>
+                            <details>
+                                <summary>View</summary>
+                                <pre class="summary-text">{{ row.raw | tojson(indent=2) }}</pre>
+                            </details>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No live logs found for the selected filters.</p>
+            {% endif %}
+        </section>
+
+        <a href="{{ url_for('live_dashboard') }}" class="btn-run">Back to Live Dashboard</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-run" style="margin-left: 8px;">Back to Dashboard</a>
+    </div>
+</body>
+</html>

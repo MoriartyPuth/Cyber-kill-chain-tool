@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ module.title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-wrap">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        <section class="card">
+            <h3>{{ module.title }}</h3>
+            <p>{{ module.summary }}</p>
+            <form method="POST" action="{{ url_for('save_feature_module_settings', module_id=module_id) }}" class="case-form">
+                {% for field in module.settings %}
+                    {% if field.type == 'bool' %}
+                    <label>
+                        <input type="checkbox" name="{{ field.key }}" {% if current_settings.get(field.key) %}checked{% endif %}>
+                        {{ field.label }}
+                    </label>
+                    {% elif field.type == 'select' %}
+                    <label>{{ field.label }}
+                        <select name="{{ field.key }}">
+                            {% for opt in field.options %}
+                            <option value="{{ opt }}" {% if current_settings.get(field.key) == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    {% else %}
+                    <label>{{ field.label }}
+                        <input type="number" name="{{ field.key }}" value="{{ current_settings.get(field.key) }}">
+                    </label>
+                    {% endif %}
+                {% endfor %}
+                <button type="submit" class="btn-search">Save Settings</button>
+            </form>
+        </section>
+
+        <section class="card mt-4">
+            <h3>{{ preview.title if preview else 'Preview' }}</h3>
+            {% if preview and preview.type == 'cards' %}
+            <div class="severity-grid">
+                {% for c in preview.cards %}
+                <div class="severity-card">
+                    <small>{{ c.label }}</small>
+                    <h2>{{ c.value }}</h2>
+                </div>
+                {% endfor %}
+            </div>
+            {% elif preview and preview.type == 'table' %}
+                {% if preview.rows %}
+                <table>
+                    <thead>
+                        <tr>
+                            {% for key in preview.rows[0].keys() %}
+                            <th>{{ key|replace('_', ' ')|title }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in preview.rows %}
+                        <tr>
+                            {% for value in row.values() %}
+                            <td>{{ value }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-dim">No data available for current settings.</p>
+                {% endif %}
+            {% else %}
+                {% if preview and preview['meta'] %}<p><strong>{{ preview['meta'] }}</strong></p>{% endif %}
+                {% if preview and preview['items'] %}
+                <ul>
+                    {% for item in preview['items'] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-dim">No data available for current settings.</p>
+                {% endif %}
+            {% endif %}
+
+            <div class="insight-buttons">
+                <a class="btn-search panel-link" href="{{ url_for('rule_effectiveness_page') }}">Back to Detection Rule Effectiveness</a>
+                <a class="btn-search panel-link" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

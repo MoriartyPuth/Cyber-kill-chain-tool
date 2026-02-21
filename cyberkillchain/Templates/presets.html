@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Presets & Scheduling</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Presets & Scheduling</h3>
+            <div class="preset-grid">
+                <form method="POST" action="{{ url_for('create_preset') }}" class="preset-form">
+                    <input type="text" name="name" placeholder="Preset name">
+                    <select name="attack_type">
+                        <option value="">Attack type</option>
+                        <option>Phishing</option>
+                        <option>Malware</option>
+                        <option>Ransomware</option>
+                        <option>DDoS</option>
+                        <option>Supply Chain</option>
+                        <option>APT</option>
+                        <option>Insider Threat</option>
+                    </select>
+                    <button type="submit" class="btn-search">Create Preset</button>
+                </form>
+                <form method="POST" action="{{ url_for('create_schedule') }}" class="preset-form">
+                    <select name="preset_id">
+                        <option value="">Preset</option>
+                        {% for p in presets %}
+                        <option value="{{ p.id }}">{{ p.name }} ({{ p.attack_type }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="interval_minutes" min="5" step="5" value="60">
+                    <button type="submit" class="btn-search">Schedule</button>
+                </form>
+            </div>
+            {% if presets %}
+            <div class="preset-list">
+                {% for p in presets %}
+                <div class="preset-item">
+                    <div>
+                        <strong>{{ p.name }}</strong>
+                        <small class="text-dim">{{ p.attack_type }}</small>
+                    </div>
+                    <form method="POST" action="{{ url_for('run_preset', preset_id=p.id) }}">
+                        <button type="submit" class="btn-search">Run</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if schedules %}
+            <div class="preset-list">
+                {% for s in schedules %}
+                <div class="preset-item">
+                    <div>
+                        <strong>Every {{ s.interval_minutes }} min</strong>
+                        {% if preset_lookup and preset_lookup.get(s.preset_id) %}
+                        <small class="text-dim">{{ preset_lookup.get(s.preset_id).name }} ({{ preset_lookup.get(s.preset_id).attack_type }})</small>
+                        {% else %}
+                        <small class="text-dim">Preset #{{ s.preset_id }}</small>
+                        {% endif %}
+                    </div>
+                    <form method="POST" action="{{ url_for('toggle_schedule', schedule_id=s.id) }}">
+                        <button type="submit" class="btn-search">{{ 'Disable' if s.enabled else 'Enable' }}</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <p class="text-dim">Schedules run even when no one opens the dashboard (background scheduler required).</p>
+        </section>
+        <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+    </div>
+</body>
+</html>

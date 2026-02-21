@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Report Poster</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="report-poster">
+        <header class="report-header">
+            <h1>CYBER KILL CHAIN</h1>
+            <h2>Security Simulation Report</h2>
+            <small>{{ sim.created_at.strftime('%Y-%m-%d %H:%M') if sim else '' }}</small>
+        </header>
+
+        <section class="report-highlight">
+            <div class="report-score">
+                <small>Detection Score</small>
+                <h1 class="score">{{ report.score }}%</h1>
+                <small>Severity: {{ report.severity }}</small>
+                {% if report.score|int > 60 %}
+                <span class="pill-success">DEFENSE SUCCESS</span>
+                {% else %}
+                <span class="pill-fail">IMPROVEMENT NEEDED</span>
+                {% endif %}
+            </div>
+            <div class="report-meta">
+                <p><strong>Attack:</strong> {{ report.attack }}</p>
+                {% if report.threat_narrative %}
+                <div class="ai-narrative">
+                    <h4>AI Threat Narrative</h4>
+                    <p>{{ report.threat_narrative }}</p>
+                </div>
+                {% endif %}
+                {% if sim %}
+                <div class="tag-section">
+                    <h4>Case Tags</h4>
+                    {% if sim.tags %}
+                    <div class="tag-list">
+                        {% for t in sim.tags %}
+                        <span class="tag">{{ t }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-dim">No tags yet.</p>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('tag_simulation', sim_id=sim.id) }}" class="tag-form">
+                        <input type="text" name="tags" placeholder="Add tags (comma-separated)">
+                        <button type="submit" class="btn-small">Add</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="report-body">
+            <h3>Technical Trace</h3>
+            <table class="poster-table">
+                <thead>
+                    <tr><th>Stage</th><th>Status</th><th>Tool</th><th>Details</th></tr>
+                </thead>
+                <tbody>
+                    {% for e in report.events %}
+                    <tr>
+                        <td>{{ e.stage }}</td>
+                        <td>{{ e.status }}</td>
+                        <td>{{ e.tool }}</td>
+                        <td>{{ e.reason if e.status == 'Detected' else e.miss_reason }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if report.recs %}
+            <h3>Remediation Steps</h3>
+            <ul class="remediation-list">
+                {% for r in report.recs %}
+                <li><strong>{{ r.stage }}:</strong> {{ r.improve }} — <em>{{ r.response }}</em></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </section>
+
+        <footer class="report-footer">
+            <a href="{{ url_for('dashboard') }}" class="btn-run">← Back to Dashboard</a>
+            {% if sim %}
+            <a href="{{ url_for('user_profile') }}" class="btn-small">View Profile</a>
+            <form method="POST" action="{{ url_for('create_case') }}" class="inline-form">
+                <input type="hidden" name="simulation_id" value="{{ sim.id }}">
+                <input type="hidden" name="title" value="Case for {{ sim.attack_type }} ({{ sim.id }})">
+                <input type="hidden" name="description" value="Generated from simulation report.">
+                <button type="submit" class="btn-small">Create Case</button>
+            </form>
+            {% endif %}
+        </footer>
+    </div>
+</body>
+</html>

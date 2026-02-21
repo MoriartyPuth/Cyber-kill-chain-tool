@@ -1,0 +1,31 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audit Log</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Audit Log</h3>
+            <table>
+                <thead>
+                    <tr><th>Time</th><th>Actor</th><th>Action</th><th>Meta</th></tr>
+                </thead>
+                <tbody>
+                    {% for a in logs %}
+                    <tr>
+                        <td>{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ a.actor_id or '-' }}</td>
+                        <td>{{ a.action }}</td>
+                        <td><pre class="summary-text">{{ a.meta | tojson }}</pre></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+        </section>
+    </div>
+</body>
+</html>

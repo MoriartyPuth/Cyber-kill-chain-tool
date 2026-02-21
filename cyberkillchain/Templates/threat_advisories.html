@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threat Advisory</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="advisory-page">
+    <div class="main advisory-main">
+        <section class="card advisory-header">
+            <div>
+                <h3>Threat Advisory Dashboard</h3>
+                <p class="text-dim">Actionable advisories derived from discovered threat patterns.</p>
+            </div>
+            <div class="inline-form">
+                <form method="POST" action="{{ url_for('generate_threat_advisories') }}" class="inline-form">
+                    <button type="submit" class="btn-search">Generate Advisories</button>
+                </form>
+                <a href="{{ url_for('threats_page') }}" class="btn-run" style="text-decoration:none;">Back to Threat Discovery</a>
+            </div>
+        </section>
+
+        <section class="severity-grid advisory-kpis">
+            <div class="severity-card">
+                <small>Total Advisories</small>
+                <h2>{{ total_advisories }}</h2>
+            </div>
+            <div class="severity-card">
+                <small>Open</small>
+                <h2>{{ total_open }}</h2>
+            </div>
+            <div class="severity-card">
+                <small>Applied</small>
+                <h2>{{ total_applied }}</h2>
+            </div>
+            <div class="severity-card">
+                <small>Dismissed</small>
+                <h2>{{ total_dismissed }}</h2>
+            </div>
+        </section>
+
+        <section class="advisory-grid">
+            <div class="card">
+                <h3>Recent Advisories</h3>
+                <div class="advisory-cards">
+                    {% if recent_advisories %}
+                        {% for a in recent_advisories %}
+                        <article class="advisory-item priority-{{ a.priority }}">
+                            <header>
+                                <span class="advisory-priority">{{ a.priority|upper }}</span>
+                                <span class="advisory-count">{{ a.signal_count }} signals</span>
+                            </header>
+                            <h4>{{ a.title }}</h4>
+                            <p>{{ a.summary }}</p>
+                            <div class="advisory-actions">
+                                {% for action in (a.recommended_actions or [])[:2] %}
+                                <div>{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                            <form method="POST" action="{{ url_for('update_threat_advisory_status', advisory_id=a.id) }}" class="inline-form">
+                                <select name="status">
+                                    <option value="open" {% if a.status == 'open' %}selected{% endif %}>open</option>
+                                    <option value="applied" {% if a.status == 'applied' %}selected{% endif %}>applied</option>
+                                    <option value="dismissed" {% if a.status == 'dismissed' %}selected{% endif %}>dismissed</option>
+                                </select>
+                                <button type="submit" class="btn-search">Update</button>
+                            </form>
+                        </article>
+                        {% endfor %}
+                    {% else %}
+                    <p class="text-dim">No advisories yet. Use Generate Advisories.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Advisory Category</h3>
+                <div class="advisory-chart-wrap">
+                    <canvas id="advisoryCategoryChart"></canvas>
+                </div>
+                <h3>Advisory Status</h3>
+                <div class="advisory-chart-wrap">
+                    <canvas id="advisoryStatusChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3>Advisory Distribution Trend (Last 7 days)</h3>
+            <div class="advisory-chart-wrap">
+                <canvas id="advisoryTrendChart"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const pLabels = {{ priority_labels|tojson }};
+        const pValues = {{ priority_values|tojson }};
+        const sLabels = {{ status_labels|tojson }};
+        const sValues = {{ status_values|tojson }};
+        const trend = {{ trend|tojson }};
+
+        const categoryCtx = document.getElementById('advisoryCategoryChart');
+        if (categoryCtx) {
+            new Chart(categoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: pLabels,
+                    datasets: [{
+                        data: pValues,
+                        backgroundColor: ['#ef4444', '#f97316', '#3b82f6']
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        const statusCtx = document.getElementById('advisoryStatusChart');
+        if (statusCtx) {
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: sLabels,
+                    datasets: [{
+                        data: sValues,
+                        backgroundColor: ['#2563eb', '#22c55e', '#64748b']
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        const trendCtx = document.getElementById('advisoryTrendChart');
+        if (trendCtx) {
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: trend.labels,
+                    datasets: [{
+                        label: 'Advisories',
+                        data: trend.values,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

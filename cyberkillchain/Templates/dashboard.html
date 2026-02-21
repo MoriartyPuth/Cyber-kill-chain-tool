@@ -1,0 +1,841 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cyber Kill Chain Simulator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <!-- Funnel: Chart.js-only (D3 removed) -->
+</head>
+<body class="elastic-ui">
+    <div class="eui-topbar">
+        <div class="eui-brand">Threat Intelligent Dashboard</div>
+        <div class="eui-global-search">
+            <input type="text" placeholder="Find apps, content, and more..." aria-label="Global search">
+        </div>
+        <div class="eui-top-actions">
+            <a href="{{ url_for('settings_page') }}" class="eui-action-link">Settings</a>
+            <a href="{{ url_for('user_profile') }}" class="eui-user-pill">{{ (user.username[:1] if user else 'G')|upper }}</a>
+        </div>
+    </div>
+    <div class="eui-subnav">
+        <a href="{{ url_for('dashboard') }}" class="eui-subnav-item active">Security</a>
+        <a href="{{ url_for('analytics_panels_page') }}" class="eui-subnav-item">Analytics Panels</a>
+        <a href="{{ url_for('user_profile') }}" class="eui-subnav-item">Users</a>
+    </div>
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Security</h2>
+            <div class="budget-card">
+                <small>Defense Budget</small>
+                <h3>${{ "{:,}".format(budget) }}</h3>
+            </div>
+
+            <!-- User Info (Database Integration) -->
+            <div class="user-info-card">
+                <small>Logged In</small>
+                <p id="username">{{ user.username if user else 'Guest User' }}</p>
+                {% if user %}
+                <small class="text-dim">Role: {{ user.role }}</small>
+                {% endif %}
+                <details class="sidebar-dropdown">
+                    <summary class="profile-link">Users</summary>
+                    <div class="sidebar-dropdown-menu">
+                        <a href="/user/profile" class="profile-link">Users</a>
+                        {% if user and user.role == 'admin' %}
+                        <a href="{{ url_for('admin_users') }}" class="profile-link">Manage Users</a>
+                        {% endif %}
+                    </div>
+                </details>
+                <details class="sidebar-dropdown">
+                    <summary class="profile-link">Cases</summary>
+                    <div class="sidebar-dropdown-menu">
+                        <a href="{{ url_for('cases_page') }}" class="profile-link">Case Management</a>
+                        <a href="{{ url_for('presets_page') }}" class="profile-link">Preset and Scheduling</a>
+                    </div>
+                </details>
+                <details class="sidebar-dropdown">
+                    <summary class="profile-link">Insights</summary>
+                    <div class="sidebar-dropdown-menu">
+                        <a href="{{ url_for('insights_panel', panel='timeline') }}" class="profile-link">Case Timeline</a>
+                        <a href="{{ url_for('insights_panel', panel='breakdown') }}" class="profile-link">Breakdown</a>
+                        <a href="{{ url_for('insights_panel', panel='workflow') }}" class="profile-link">Workflow Analysis</a>
+                        <a href="{{ url_for('insights_panel', panel='funnel') }}" class="profile-link">Threat Funnel</a>
+                    </div>
+                </details>
+                <details class="sidebar-dropdown">
+                    <summary class="profile-link">Threat</summary>
+                    <div class="sidebar-dropdown-menu">
+                        <a href="{{ url_for('threats_page') }}" class="profile-link">Threat Discovery</a>
+                        <a href="{{ url_for('threat_advisory_page') }}" class="profile-link">Threat Advisory</a>
+                        {% if user and user.role in ['admin', 'analyst'] %}
+                        <a href="{{ url_for('intel_page') }}" class="profile-link">Threat Intel</a>
+                        <a href="{{ url_for('rule_effectiveness_page') }}" class="profile-link">Detection Rule Effectiveness</a>
+                        {% endif %}
+                    </div>
+                </details>
+                <details class="sidebar-dropdown">
+                    <summary class="profile-link">Governance</summary>
+                    <div class="sidebar-dropdown-menu">
+                        <a href="{{ url_for('settings_page') }}" class="profile-link">Settings</a>
+                        {% if user and user.role in ['admin', 'analyst'] %}
+                        <a href="{{ url_for('audit_page') }}" class="profile-link">Audit Log</a>
+                        <a href="{{ url_for('activity_page') }}" class="profile-link">Team Activity</a>
+                        {% endif %}
+                    </div>
+                </details>
+                {% if user and user.role in ['admin', 'analyst'] %}
+                <details class="sidebar-dropdown">
+                    <summary class="profile-link">Dashboards</summary>
+                    <div class="sidebar-dropdown-menu">
+                        <a href="{{ url_for('analytics_panels_page') }}" class="profile-link">Analytics Panels</a>
+                        <a href="{{ url_for('live_dashboard') }}" class="profile-link">Live Session</a>
+                        <a href="{{ url_for('live_history_view') }}" class="profile-link">Live History</a>
+                        <a href="{{ url_for('eps_dashboard_page') }}" class="profile-link">EPS Dashboard</a>
+                        <a href="{{ url_for('kpi_dashboard_page') }}" class="profile-link">KPI Dashboard</a>
+                    </div>
+                </details>
+                <details class="sidebar-dropdown">
+                    <summary class="profile-link">Feature Modules</summary>
+                    <div class="sidebar-dropdown-menu">
+                        <a href="{{ url_for('feature_module_page', module_id='rule-tuning') }}" class="profile-link">Rule Tuning Assistant</a>
+                        <a href="{{ url_for('feature_module_page', module_id='case-similarity') }}" class="profile-link">Case Similarity Engine</a>
+                        <a href="{{ url_for('feature_module_page', module_id='mitre-planner') }}" class="profile-link">MITRE Coverage Planner</a>
+                        <a href="{{ url_for('feature_module_page', module_id='sla-heatmap') }}" class="profile-link">Response SLA Heatmap</a>
+                        <a href="{{ url_for('feature_module_page', module_id='emulation-packs') }}" class="profile-link">Adversary Emulation Packs</a>
+                        <a href="{{ url_for('feature_module_page', module_id='timeline-generator') }}" class="profile-link">Post-Incident Timeline Generator</a>
+                        <a href="{{ url_for('feature_module_page', module_id='intel-confidence') }}" class="profile-link">Threat Intel Confidence Scoring</a>
+                        <a href="{{ url_for('feature_module_page', module_id='executive-snapshot') }}" class="profile-link">Executive Risk Snapshot</a>
+                        <a href="{{ url_for('feature_module_page', module_id='data-quality') }}" class="profile-link">Data Quality Monitor</a>
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+
+
+            
+            {% if saved_searches %}
+            <div class="saved-searches">
+                <h4>Saved Searches</h4>
+                {% for s in saved_searches %}
+                <div class="saved-search-item">
+                    <a href="{{ url_for('search', q=s.query_text) }}">{{ s.name }}</a>
+                    <form method="POST" action="{{ url_for('delete_search', search_id=s.id) }}">
+                        <button type="submit" class="btn-link">Remove</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <a href="/reset" class="reset-link">Wipe System & Reset</a>
+        </aside>
+
+        <main class="main">
+            <section class="eui-filterbar">
+                <div class="eui-filter-actions">
+                    <button type="button" class="eui-icon-btn" aria-label="Filter">+</button>
+                </div>
+                <form method="GET" action="/search" class="eui-kql-form">
+                    <input type="text" name="q" placeholder="Filter your data using KQL syntax" value="{{ search_query or '' }}">
+                    <input type="hidden" name="timeline_days" value="{{ timeline_days or 30 }}">
+                    <button type="submit" class="eui-filter-submit">Filter</button>
+                </form>
+                <div class="eui-time-controls">
+                    <form method="GET" action="{{ url_for('dashboard') }}">
+                        <select name="timeline_days">
+                            <option value="7" {% if timeline_days == 7 %}selected{% endif %}>Last 7 days</option>
+                            <option value="30" {% if timeline_days == 30 %}selected{% endif %}>Last 30 days</option>
+                            <option value="90" {% if timeline_days == 90 %}selected{% endif %}>Last 90 days</option>
+                        </select>
+                        <button type="submit" class="btn-search">Refresh</button>
+                    </form>
+                </div>
+            </section>
+            <header class="top-header">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-wrap">
+                    {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+                <div class="header-left">
+                    <h1>Users</h1>
+                    <small class="text-dim">Last event: 1 second ago</small>
+                </div>
+                <div class="header-actions">
+                    <form method="POST" action="/simulate" class="sim-form">
+                    <select name="attack">
+                        <option value="">Select Attack Type</option>
+                        <option>Phishing</option>
+                        <option>Malware</option>
+                        <option>Ransomware</option>
+                        <option>DDoS</option>
+                        <option>Supply Chain</option>
+                        <option>APT</option>
+                        <option>Insider Threat</option>
+                    </select>
+                    <select name="variant">
+                        <option value="standard">Standard</option>
+                        <option value="stealthy">Stealthy</option>
+                        <option value="noisy">Noisy</option>
+                        <option value="fast">Fast</option>
+                        <option value="slow">Slow</option>
+                    </select>
+                    <button type="submit" class="btn-run">Execute Attack</button>
+                    {% if user and user.role in ['admin', 'analyst'] %}
+                    <a href="{{ url_for('live_dashboard') }}" class="btn-live">Live Session</a>
+                    {% endif %}
+                    </form>
+                    <form method="GET" action="/search" class="search-form">
+                        <input type="text" name="q" placeholder="Search logs & simulations" value="{{ search_query or '' }}">
+                        <input type="hidden" name="timeline_days" value="{{ timeline_days or 30 }}">
+                        <button type="submit" class="btn-search">Search</button>
+                    </form>
+                    <a href="{{ url_for('weekly_report') }}" class="btn-search">Weekly Executive Summary</a>
+                </div>
+            </header>
+            <section class="card" id="live-sync-card">
+                <h3>Live Feed (Synced)</h3>
+                <div class="inline-form">
+                    <label>Saved Filter
+                        <select id="dash-saved-filters">
+                            <option value="">Saved Filters</option>
+                        </select>
+                    </label>
+                    <label>Minutes
+                        <input id="dash-replay-minutes" type="number" min="1" max="1440" value="60">
+                    </label>
+                    <button id="dash-apply-filter" class="btn-search" type="button">Apply</button>
+                    <button id="dash-load-replay" class="btn-search" type="button">Load Replay</button>
+                </div>
+                <div id="dash-live-list" class="case-list"></div>
+                <div id="dash-sync-status" class="text-dim">Sync: not initialized</div>
+            </section>
+
+            <!-- Analytics Dashboard (Feature 3) -->
+            {% if analytics and (widgets.analytics if widgets is defined else True) %}
+            <div class="analytics-section">
+                {% if filter_stage %}
+                <div class="filter-banner">Showing results filtered by: <strong>{{ filter_stage|capitalize }}</strong><a href="{{ url_for('dashboard') }}">Clear</a></div>
+                {% endif %}
+                <div class="timeline-controls">
+                    <form method="GET" action="{{ url_for('dashboard') }}">
+                        <label>Timeline Range</label>
+                        <select name="timeline_days">
+                            <option value="7" {% if timeline_days == 7 %}selected{% endif %}>Last 7 days</option>
+                            <option value="30" {% if timeline_days == 30 %}selected{% endif %}>Last 30 days</option>
+                            <option value="90" {% if timeline_days == 90 %}selected{% endif %}>Last 90 days</option>
+                        </select>
+                        <button type="submit" class="btn-search">Apply</button>
+                    </form>
+                </div>
+                <h3>Performance Analytics</h3>
+                {% if analytics.kpi %}
+                <div class="severity-grid">
+                    <div class="severity-card">
+                        <small>Avg 7d</small>
+                        <h2>{{ analytics.kpi.avg_7d }}%</h2>
+                    </div>
+                    <div class="severity-card">
+                        <small>Avg 30d</small>
+                        <h2>{{ analytics.kpi.avg_30d }}%</h2>
+                    </div>
+                    <div class="severity-card">
+                        <small>Prev 7d</small>
+                        <h2>{{ analytics.kpi.prev_7d }}%</h2>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="severity-grid">
+                    <div class="severity-card viz-fixed-card">
+                        <small>Kill-Chain Gaps (Top 3)</small>
+                        <div class="viz-fixed-wrap">
+                            <canvas id="killChainGapsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="severity-card viz-fixed-card">
+                        <small>Live vs Simulation</small>
+                        <div class="viz-fixed-wrap">
+                            <canvas id="liveVsSimChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <small>Average Detection Rate</small>
+                        <h2 class="text-accent">{{ analytics.avg_score }}% {% if analytics.computed_by_ai %}<span class="ai-badge">AI</span>{% endif %}</h2>
+                    </div>
+                    <div class="analytics-card">
+                        <small>Best Score</small>
+                        <h2 class="text-green">{{ analytics.max_score }}%</h2>
+                    </div>
+                    <div class="analytics-card">
+                        <small>Total Simulations</small>
+                        <h2>{{ analytics.total_simulations }}</h2>
+                    </div>
+                    <div class="analytics-card">
+                        <small>Detection Trend</small>
+                        <canvas id="trendChart" height="40"></canvas>
+                    </div>
+                </div>
+
+                <!-- ROI Analysis (Feature 3) -->
+                {% if roi_data %}
+                <div class="roi-section">
+                    <h4>Investment ROI Analysis</h4>
+                    <table class="roi-table">
+                        <thead>
+                            <tr><th>Upgrade</th><th>Cost</th><th>Units</th><th>ROI Multiplier</th><th>Total Value</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for upgrade, data in roi_data.items() %}
+                            <tr>
+                                <td><strong>{{ upgrade }}</strong></td>
+                                <td>${{ data.cost }}</td>
+                                <td>{{ data.units }}</td>
+                                <td>{{ data.roi_multiplier }}x</td>
+                                <td class="text-green">${{ "{:,}".format(data.total_roi|int) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Severity Overview -->
+                {% if analytics.severity %}
+                <div class="roi-section">
+                    <h4>Severity Distribution</h4>
+                    <div class="severity-grid">
+                        {% for k, v in analytics.severity.items() %}
+                        <div class="severity-card">
+                            <small>{{ k }}</small>
+                            <h2>{{ v }}</h2>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Correlation Matrix -->
+                {% if analytics.correlation %}
+                <div class="breakdown-section">
+                    <div class="panel-row">
+                        <div class="panel-label">
+                            <h4>Stage Correlation</h4>
+                        </div>
+                        <div class="panel-content">
+                            <table class="matrix-table">
+                                <thead>
+                                    <tr>
+                                        <th>Stage</th>
+                                        {% for s in analytics.correlation.stages %}
+                                        <th>{{ s }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for i in range(analytics.correlation.stages|length) %}
+                                    <tr>
+                                        <td><strong>{{ analytics.correlation.stages[i] }}</strong></td>
+                                        {% for val in analytics.correlation.matrix[i] %}
+                                        <td>{{ val }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+            {% endif %}
+
+
+
+            {% if score is defined %}
+            {% if (widgets.summary if widgets is defined else True) %}
+            <div class="summary-grid">
+                <div class="card">
+                    <small>Detection Success</small>
+                    <h2 class="{{ 'text-green' if score > 60 else 'text-red' }}">{{ score }}%</h2>
+                </div>
+                <div class="card">
+                    <small>Active Threat</small>
+                    <h2>{{ attack_type }}</h2>
+                </div>
+
+                <div class="card flex-center">
+                    {% if last_sim_id %}
+                    <a href="/report/{{ last_sim_id }}" class="btn-download">View Report</a>
+                    {% else %}
+                    <a href="/view_report" class="btn-download">View Report</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <section class="card">
+                <h3>Technical Trace Analysis</h3>
+                <table>
+                    <thead>
+                        <tr><th>Stage</th><th>Status</th><th>Tool</th><th>Details</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for e in events %}
+                        <tr class="{{ 'row-miss' if e.status == 'Missed' else 'row-hit' }}">
+                            <td><strong>{{ e.stage }}</strong></td>
+                            <td><span class="pill">{{ e.status }}</span></td>
+                            <td>{{ e.tool }}</td>
+                            <td>{{ e.reason if e.status == 'Detected' else e.miss_reason }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+            {% endif %}
+
+            <!-- AI Threat Narrative (Feature: AI Integration) -->
+            {% if ai_enabled and playbook %}
+            <section class="card ai-section">
+                <h3>ðŸ¤– AI Threat Analysis</h3>
+                <div class="ai-narrative">
+                    <p><strong>Threat Narrative:</strong> This section is powered by AI and will analyze the attack pattern when connected to OpenAI.</p>
+                    <p><em>Note: Set your OPENAI_API_KEY in the .env file to enable AI-powered threat narratives and intelligent recommendations.</em></p>
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Incident Response Playbook (Feature 8) -->
+            {% if playbook %}
+            <section class="playbook-section card">
+                <h3>Incident Response Playbook: {{ attack_type }}</h3>
+                <div class="playbook-grid">
+                    <div class="playbook-card blue-team-card">
+                        <h4>Blue Team Response</h4>
+                        <p class="response-time"><strong>Estimated Response Time:</strong> {{ playbook.blue_team_time }}</p>
+                        <ol class="playbook-actions">
+                            {% for action in playbook.blue_team %}
+                            <li>{{ action }}</li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                    <div class="playbook-card red-team-card">
+                        <h4>Attacker Actions</h4>
+                        <p class="attack-phase"><strong>Attacker Objectives:</strong></p>
+                        <ol class="playbook-actions">
+                            {% for action in playbook.red_team %}
+                            <li>{{ action }}</li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if recommendations %}
+            <section class="recommendations-container">
+                <h3 class="section-title">Required Remediation</h3>
+                <div class="rec-grid">
+                    {% for rec in recommendations %}
+                    <div class="rec-card border-left-red">
+                        <div class="rec-header">
+                            <span class="stage-tag">{{ rec.stage }}</span>
+                            <span class="priority">High Priority</span>
+                        </div>
+                        <div class="rec-body">
+                            <p><strong>Strategic Improvement:</strong> {{ rec.improve }}</p>
+                            <p><strong>Immediate Incident Response:</strong> {{ rec.response }}</p>
+                        </div>
+                        <small class="text-dim">Pro-tip: Prioritize quick-win controls first to reduce immediate risk.</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% else %}
+            <div class="card empty-state">
+                <p>No active simulation. Select an attack vector above to begin analysis.</p>
+            </div>
+            {% endif %}
+
+            {% if search_query and (widgets.search_results if widgets is defined else True) %}
+            <section class="card search-results">
+                <h3>Search Results for {{ search_query }}</h3>
+                <form method="POST" action="{{ url_for('save_search') }}" class="save-search-form">
+                    <input type="hidden" name="query" value="{{ search_query }}">
+                    <input type="text" name="name" placeholder="Save search as">
+                    <button type="submit" class="btn-search">Save</button>
+                </form>
+                {% if search_results and search_results|length > 0 %}
+                <table>
+                    <thead>
+                        <tr><th>Type</th><th>Time</th><th>Attack</th><th>Stage</th><th>Status</th><th>Tool</th><th>Details</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in search_results %}
+                        <tr>
+                            <td>{{ r.type }}</td>
+                            <td>{{ r.time or '' }}</td>
+                            <td>{{ r.attack or '' }}</td>
+                            <td>{{ r.stage or '' }}</td>
+                            <td>{{ r.status or '' }}</td>
+                            <td>{{ r.tool or '' }}</td>
+                            <td>{{ r.details or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-dim">No results found.</p>
+                {% endif %}
+            </section>
+            {% endif %}
+
+        </main>
+    </div>
+
+    <script>
+        // Feature 3: Analytics Charts
+        {% if analytics %}
+        // Trend chart
+        const trendCtx = document.getElementById('trendChart');
+        if (trendCtx) {
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: {{ analytics.scores|length }}}, (_, i) => i+1),
+                    datasets: [{
+                        label: 'Detection Rate',
+                        data: {{ analytics.scores }},
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        tension: 0.3,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        // Attack breakdown chart
+        const attackCtx = document.getElementById('attackChart');
+        if (attackCtx) {
+            new Chart(attackCtx, {
+                type: 'bar',
+                data: {
+                    labels: JSON.parse(document.getElementById('attack_labels').value),
+                    datasets: [{
+                        label: 'Avg Detection Rate %',
+                        data: JSON.parse(document.getElementById('attack_values').value),
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#38bdf8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        // Kill-chain gaps (Top 3)
+        const gapsCtx = document.getElementById('killChainGapsChart');
+        if (gapsCtx) {
+            const gaps = {{ (analytics.kill_chain_gaps or [])|tojson }};
+            const labels = gaps.map(g => g.stage);
+            const values = gaps.map(g => g.count);
+            new Chart(gapsCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels.length ? labels : ['No gaps'],
+                    datasets: [{
+                        label: 'Gap Count',
+                        data: values.length ? values : [0],
+                        backgroundColor: ['#f97316', '#fb7185', '#8b5cf6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        // Live vs simulation averages + sample counts
+        const lvsCtx = document.getElementById('liveVsSimChart');
+        if (lvsCtx) {
+            const src = {{ (analytics.source_compare or {})|tojson }};
+            const liveAvg = Number(src.live_avg || 0);
+            const simAvg = Number(src.sim_avg || 0);
+            const liveCount = Number(src.live_count || 0);
+            const simCount = Number(src.sim_count || 0);
+            const sourceCounts = [liveCount, simCount];
+            new Chart(lvsCtx, {
+                data: {
+                    labels: ['Live', 'Simulation'],
+                    datasets: [{
+                        type: 'bar',
+                        label: 'Avg Detection %',
+                        data: [liveAvg, simAvg],
+                        backgroundColor: ['#22c55e', '#3b82f6'],
+                        yAxisID: 'y'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: '600' },
+                            anchor: 'center',
+                            align: 'center',
+                            formatter: function(value, context) {
+                                return sourceCounts[context.dataIndex] || 0;
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Avg %' } }
+                    }
+                },
+                plugins: (typeof ChartDataLabels !== 'undefined') ? [ChartDataLabels] : []
+            });
+        }
+
+        // Case Timeline
+        {% if analytics.case_timeline %}
+        const timelineCtx = document.getElementById('caseTimeline');
+        if (timelineCtx) {
+            new Chart(timelineCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ analytics.case_timeline["labels"]|tojson }},
+                    datasets: [{
+                        label: 'Cases',
+                        data: {{ analytics.case_timeline["values"]|tojson }},
+
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96,165,250,0.08)',
+                        tension: 0.35,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+        {% endif %}
+
+        // Case Breakdown (donut)
+        {% if analytics.case_breakdown %}
+        const caseBreakCtx = document.getElementById('caseBreakdown');
+        if (caseBreakCtx) {
+            const labels = JSON.parse(document.getElementById('case_break_labels').value);
+            const data = JSON.parse(document.getElementById('case_break_values').value);
+            new Chart(caseBreakCtx, {
+                type: 'doughnut',
+                data: { labels: labels, datasets: [{ data, backgroundColor: ['#ef4444','#f97316','#f59e0b','#3b82f6','#64748b'], hoverOffset: 6 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1.0,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+        {% endif %}
+
+        // Workflow Chart (horizontal bar)
+        {% if analytics.workflow %}
+        const workflowCtx = document.getElementById('workflowChart');
+        if (workflowCtx) {
+            const wfLabels = {{ analytics.workflow["labels"]|tojson }};
+            const wfData = {{ analytics.workflow["values"]|tojson }};
+            const wfMaxBar = Math.max(12, Math.min(40, Math.floor(320 / Math.max(1, wfLabels.length))));
+            new Chart(workflowCtx, {
+                type: 'bar',
+                data: {
+                    labels: wfLabels,
+                    datasets: [{
+                        label: 'Cases',
+                        data: wfData,
+                        backgroundColor: ['#60a5fa','#7c3aed','#06b6d4','#f97316','#10b981']
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                    elements: {
+                        bar: {
+                            borderRadius: 6,
+                            maxBarThickness: wfMaxBar,
+                            barPercentage: 0.85,
+                            categoryPercentage: 0.8
+                        }
+                    },
+                    layout: { padding: { top: 8, bottom: 8, left: 6, right: 6 } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0 } },
+                        y: { ticks: { autoSkip: false } }
+                    }
+                }
+            });
+        }
+        {% endif %}
+
+        // Funnel: Chart.js preview (D3 removed)
+        {% if analytics.funnel %}
+        (function() {
+            const container = document.getElementById('funnelChart');
+            if (!container || typeof Chart === 'undefined') return;
+            container.innerHTML = '<canvas id="funnelPreview" style="width:100%; height:220px;"></canvas>';
+            const ctx = document.getElementById('funnelPreview').getContext('2d');
+            const values = [{{ analytics.funnel.analyzed }}, {{ analytics.funnel.found }}, {{ analytics.funnel.created }}];
+            const labels = ['Analyzed','Found','Created'];
+            const colors = ['#60a5fa','#10b981','#f97316'];
+            const total = values[0] || 1;
+            try {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ data: values, backgroundColor: colors }] },
+                    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, datalabels:{ formatter:(v)=> v + ' (' + Math.round((v/total)*100) + '%)', color:'#fff', anchor:'end', align:'end' } }, scales:{ y:{ beginAtZero:true } } },
+                    plugins: (typeof ChartDataLabels !== 'undefined') ? [ChartDataLabels] : []
+                });
+            } catch (e) { console.error('Funnel preview error', e); }
+        })();
+        {% endif %}
+        {% endif %}
+    </script>
+        <script>
+        const dashList = document.getElementById('dash-live-list');
+        const dashFilters = document.getElementById('dash-saved-filters');
+        const dashMinutes = document.getElementById('dash-replay-minutes');
+        const dashApply = document.getElementById('dash-apply-filter');
+        const dashReplay = document.getElementById('dash-load-replay');
+        const dashSync = document.getElementById('dash-sync-status');
+        const dashSocket = io();
+        const dashEvents = [];
+
+        function dashSyncStatus() {
+            if (!dashSync) return;
+            const opt = dashFilters.options[dashFilters.selectedIndex];
+            const name = opt && opt.value ? opt.textContent : 'None';
+            const minutes = dashMinutes.value || localStorage.getItem('live_replay_minutes') || '60';
+            dashSync.textContent = `Sync: Filter=${name}, Minutes=${minutes}`;
+        }
+
+        function dashRender(items) {
+            if (!dashList) return;
+            dashList.innerHTML = '';
+            if (!items.length) {
+                dashList.innerHTML = '<p class="text-dim">No matching live events.</p>';
+                return;
+            }
+            items.slice(0, 20).forEach(ev => {
+                const div = document.createElement('div');
+                div.className = 'case-item';
+                const stage = (ev.event || {}).stage || '';
+                const status = (ev.event || {}).status || '';
+                div.innerHTML = `<div><strong>${ev.attack}</strong> <small class="text-dim">${stage} â€¢ ${status}</small></div><div>${ev.timestamp}</div>`;
+                dashList.appendChild(div);
+            });
+        }
+
+        function dashApplyFilterToEvents() {
+            const opt = dashFilters.options[dashFilters.selectedIndex];
+            if (!opt || !opt.dataset.filters) return dashEvents;
+            const f = JSON.parse(opt.dataset.filters);
+            return dashEvents.filter(ev => {
+                if (f.attack && ev.attack !== f.attack) return false;
+                if (f.stage && (ev.event || {}).stage !== f.stage) return false;
+                if (f.status && (ev.event || {}).status !== f.status) return false;
+                if (f.severity && (ev.event || {}).severity !== f.severity && ev.severity !== f.severity) return false;
+                return true;
+            });
+        }
+
+        async function dashLoadFilters() {
+            const resp = await fetch('/api/live/filters');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const list = data.filters || [];
+            dashFilters.innerHTML = '<option value="">Saved Filters</option>';
+            list.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = String(f.id);
+                opt.textContent = f.name;
+                opt.dataset.filters = JSON.stringify(f.filters || {});
+                dashFilters.appendChild(opt);
+            });
+            const savedId = localStorage.getItem('live_filter_selected');
+            if (savedId) {
+                dashFilters.value = savedId;
+            }
+            dashSyncStatus();
+        }
+
+        async function dashLoadReplay() {
+            const minutes = Math.max(1, Math.min(1440, parseInt(dashMinutes.value || '60', 10)));
+            localStorage.setItem('live_replay_minutes', String(minutes));
+            dashSyncStatus();
+            const resp = await fetch(`/api/live/replay?limit=50&minutes=${minutes}`);
+            const data = await resp.json();
+            dashEvents.length = 0;
+            (data.events || []).forEach(ev => dashEvents.push(ev));
+            dashRender(dashApplyFilterToEvents());
+        }
+
+        dashSocket.on('new_log', function(data) {
+            dashEvents.unshift(data);
+            if (dashEvents.length > 200) dashEvents.pop();
+            dashRender(dashApplyFilterToEvents());
+        });
+
+        dashSocket.on('live_filters_updated', function() {
+            dashLoadFilters();
+        });
+
+        dashApply.addEventListener('click', () => {
+            const opt = dashFilters.options[dashFilters.selectedIndex];
+            if (opt && opt.value) localStorage.setItem('live_filter_selected', opt.value);
+            dashSyncStatus();
+            dashRender(dashApplyFilterToEvents());
+        });
+
+        dashReplay.addEventListener('click', dashLoadReplay);
+
+        const savedMinutes = localStorage.getItem('live_replay_minutes');
+        if (savedMinutes) dashMinutes.value = savedMinutes;
+
+        dashLoadFilters().then(dashLoadReplay);
+    </script>
+</body>
+</html>

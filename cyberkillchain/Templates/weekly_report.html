@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Weekly Executive Summary</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main">
+        <section class="card">
+            <h3>Weekly Executive Summary (Last {{ report.days }} days)</h3>
+            {% if report.total == 0 %}
+            <p class="text-dim">No events found for this period.</p>
+            {% else %}
+            <p>Total Events: <strong>{{ report.total }}</strong></p>
+            <p>Average Detection Score: <strong>{{ report.avg_score }}%</strong></p>
+
+            <h4>Top Attack Types</h4>
+            <ul>
+                {% for a, c in report.top_attacks %}
+                <li>{{ a }}: {{ c }}</li>
+                {% endfor %}
+            </ul>
+
+            <h4>Top Missed Stages</h4>
+            <ul>
+                {% for s, c in report.top_misses %}
+                <li>{{ s }}: {{ c }}</li>
+                {% endfor %}
+            </ul>
+
+            <h4>Kill-Chain Gaps</h4>
+            <ul>
+                {% for g in report.kill_chain_gaps %}
+                <li>{{ g.stage }}: {{ g.count }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </section>
+        <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+    </div>
+</body>
+</html>

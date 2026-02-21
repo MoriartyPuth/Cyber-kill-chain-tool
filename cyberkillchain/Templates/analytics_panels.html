@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Analytics Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="elastic-ui analytics-dashboard-page">
+    <div class="eui-topbar">
+        <div class="eui-brand">Threat Intelligent Dashboard</div>
+        <div class="eui-global-search">
+            <input type="text" placeholder="Find apps, content, and more..." aria-label="Global search">
+        </div>
+        <div class="eui-top-actions">
+            <a href="{{ url_for('dashboard') }}" class="eui-action-link">Dashboard</a>
+            <a href="{{ url_for('user_profile') }}" class="eui-user-pill">{{ (user.username[:1] if user else 'G')|upper }}</a>
+        </div>
+    </div>
+
+    <div class="eui-subnav">
+        <a href="{{ url_for('dashboard') }}" class="eui-subnav-item">Security</a>
+        <a href="{{ url_for('analytics_panels_page') }}" class="eui-subnav-item active">Analytics Panels</a>
+        <a href="{{ url_for('eps_dashboard_page') }}" class="eui-subnav-item">EPS Dashboard</a>
+        <a href="{{ url_for('kpi_dashboard_page') }}" class="eui-subnav-item">KPI Dashboard</a>
+    </div>
+
+    <main class="main">
+        <section class="card">
+            <h3>Analytics Dashboard</h3>
+            <div class="insight-buttons">
+                <a class="btn-search panel-link" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+                <a class="btn-search panel-link" href="{{ url_for('eps_dashboard_page') }}">Open EPS Dashboard</a>
+                <a class="btn-search panel-link" href="{{ url_for('kpi_dashboard_page') }}">Open KPI Dashboard</a>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <form method="GET" action="{{ url_for('analytics_panels_page') }}" class="ioc-filter-form analytics-filter-dashboard">
+                <label>Timeline
+                    <select name="timeline_days">
+                        <option value="7" {% if timeline_days == 7 %}selected{% endif %}>7d</option>
+                        <option value="30" {% if timeline_days == 30 %}selected{% endif %}>30d</option>
+                        <option value="90" {% if timeline_days == 90 %}selected{% endif %}>90d</option>
+                    </select>
+                </label>
+                <label>IOC Type
+                    <select name="ioc_type">
+                        <option value="all" {% if selected_ioc_type == 'all' %}selected{% endif %}>All</option>
+                        {% for t in ioc_types %}
+                        <option value="{{ t }}" {% if selected_ioc_type == t %}selected{% endif %}>{{ t|upper }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Attack Type
+                    <select name="attack_type">
+                        <option value="all" {% if selected_attack_type == 'all' %}selected{% endif %}>All</option>
+                        {% for a in attack_types %}
+                        <option value="{{ a }}" {% if selected_attack_type == a %}selected{% endif %}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Top Links
+                    <select name="top_links">
+                        {% for n in [10, 20, 30, 45, 60, 80, 100] %}
+                        <option value="{{ n }}" {% if selected_top_links == n %}selected{% endif %}>{{ n }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button class="btn-search panel-link" type="submit">Apply Filters</button>
+            </form>
+        </section>
+
+        <section class="card mt-4">
+            <div class="eps-kpi-grid">
+                <div class="severity-card">
+                    <small>History Rows</small>
+                    <h2>{{ history|length if history else 0 }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Unique Attack Types</small>
+                    <h2>{{ analytics.attack_breakdown|length if analytics and analytics.attack_breakdown else 0 }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>MITRE Coverage</small>
+                    <h2>{{ analytics.mitre_coverage.coverage if analytics and analytics.mitre_coverage else 0 }}%</h2>
+                </div>
+                <div class="severity-card">
+                    <small>IOC Co-occurrences</small>
+                    <h2>{{ analytics.ioc_technique_network.summary.cooccurrences if analytics and analytics.ioc_technique_network else 0 }}</h2>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <div class="eps-grid">
+                <div class="eps-panel" id="attack-effectiveness">
+                    <h4>Attack Effectiveness</h4>
+                    {% if analytics and analytics.attack_breakdown %}
+                    <canvas id="attackChart" height="140"></canvas>
+                    <input type="hidden" id="attack_labels" value='{{ analytics.attack_labels|tojson }}'>
+                    <input type="hidden" id="attack_values" value='{{ analytics.attack_values|tojson }}'>
+                    {% else %}
+                    <p class="text-dim">No data.</p>
+                    {% endif %}
+                </div>
+                <div class="eps-panel" id="mitre-heatmap">
+                    <h4>MITRE ATT&CK Heatmap</h4>
+                    {% if analytics and analytics.mitre_heatmap %}
+                    <table class="mitre-table">
+                        <thead><tr><th>Technique</th><th>Count</th></tr></thead>
+                        <tbody>
+                            {% for t in analytics.mitre_heatmap[:8] %}
+                            <tr><td>{{ t.technique }}</td><td>{{ t.count }}</td></tr>
+                            {% endfor %}
+                            {% if not analytics.mitre_heatmap %}
+                            <tr><td colspan="2" class="text-dim">No data.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-dim">No data.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <div class="eps-table-grid">
+                <div class="eps-table-panel" id="mission-logs">
+                    <h4>Mission Logs</h4>
+                    <table class="mitre-table">
+                        <thead><tr><th>Time</th><th>Vector</th><th>Success Rate</th></tr></thead>
+                        <tbody>
+                            {% if history %}
+                                {% for h in history[:10] %}
+                                <tr>
+                                    <td>{{ h.time }}</td>
+                                    <td>{{ h.attack }}</td>
+                                    <td class="{{ 'text-green' if h.score > 60 else 'text-red' }}">{{ h.score }}%</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="3" class="text-dim">No data.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="eps-table-panel" id="ioc-network">
+                    <h4>IOC / Technique Links</h4>
+                    {% if analytics and analytics.ioc_technique_network %}
+                    <svg id="iocNetworkSvg" class="ioc-network-svg" role="img" aria-label="IOC to Technique network visualization"></svg>
+                    <table class="mitre-table mt-4">
+                        <thead><tr><th>IOC</th><th>Technique</th><th>Weight</th></tr></thead>
+                        <tbody>
+                            {% for link in analytics.ioc_technique_network.links[:8] %}
+                            {% set s = (analytics.ioc_technique_network.nodes | selectattr('id', 'equalto', link.source) | list | first) %}
+                            {% set t = (analytics.ioc_technique_network.nodes | selectattr('id', 'equalto', link.target) | list | first) %}
+                            <tr><td>{{ s.label if s else link.source }}</td><td>{{ t.label if t else link.target }}</td><td>{{ link.weight }}</td></tr>
+                            {% endfor %}
+                            {% if not analytics.ioc_technique_network.links %}
+                            <tr><td colspan="3" class="text-dim">No data.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <input type="hidden" id="ioc_network_data" value='{{ analytics.ioc_technique_network|tojson }}'>
+                    {% else %}
+                    <p class="text-dim">No data.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        {% if analytics and analytics.attack_breakdown %}
+        const attackCtx = document.getElementById('attackChart');
+        if (attackCtx) {
+            const rawLabels = JSON.parse(document.getElementById('attack_labels').value || '[]');
+            const rawValues = JSON.parse(document.getElementById('attack_values').value || '[]');
+            const rows = rawLabels.map((label, idx) => ({ label, value: Number(rawValues[idx] || 0) }));
+            rows.sort((a, b) => b.value - a.value);
+            const top = rows.slice(0, 6);
+            const shortLabel = (s) => (s && s.length > 14 ? `${s.slice(0, 14)}...` : s);
+
+            new Chart(attackCtx, {
+                type: 'bar',
+                data: {
+                    labels: top.map(r => shortLabel(r.label)),
+                    datasets: [{
+                        label: 'Avg Detection %',
+                        data: top.map(r => r.value),
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#3b82f6',
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#b7c5dd' } },
+                        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,.08)' }, ticks: { color: '#b7c5dd' } }
+                    }
+                }
+            });
+        }
+        {% endif %}
+
+        {% if analytics and analytics.ioc_technique_network %}
+        (function renderIocNetwork() {
+            const raw = document.getElementById('ioc_network_data');
+            const svg = document.getElementById('iocNetworkSvg');
+            if (!raw || !svg) return;
+
+            let data = null;
+            try { data = JSON.parse(raw.value || '{}'); } catch (e) { return; }
+            const nodes = Array.isArray(data.nodes) ? data.nodes : [];
+            const links = Array.isArray(data.links) ? data.links : [];
+            if (!nodes.length || !links.length) return;
+
+            const width = Math.max(620, svg.clientWidth || 620);
+            const height = 280;
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+            const byId = {};
+            nodes.forEach((n, i) => {
+                const col = n.type === 'ioc' ? 0.28 : 0.72;
+                const rowGap = height / (Math.ceil(nodes.length / 2) + 1);
+                const row = (i % Math.ceil(nodes.length / 2)) + 1;
+                n._x = col * width + ((i % 2 === 0) ? 10 : -10);
+                n._y = row * rowGap;
+                byId[n.id] = n;
+            });
+
+            let linkSvg = '';
+            links.forEach((l) => {
+                const s = byId[l.source];
+                const t = byId[l.target];
+                if (!s || !t) return;
+                const stroke = Math.min(5, Math.max(1, Number(l.weight || 1)));
+                linkSvg += `<line x1="${s._x}" y1="${s._y}" x2="${t._x}" y2="${t._y}" stroke="rgba(74,144,226,.35)" stroke-width="${stroke}" />`;
+            });
+
+            let nodeSvg = '';
+            nodes.forEach((n) => {
+                const r = Math.min(12, Math.max(5, Math.round(Math.sqrt(Number(n.value || 1)))));
+                const fill = n.type === 'ioc' ? '#22a7ff' : '#7c3aed';
+                const textAnchor = n.type === 'ioc' ? 'end' : 'start';
+                const textX = n.type === 'ioc' ? (n._x - r - 4) : (n._x + r + 4);
+                nodeSvg += `<circle cx="${n._x}" cy="${n._y}" r="${r}" fill="${fill}" />`;
+                nodeSvg += `<text x="${textX}" y="${n._y + 4}" font-size="10" fill="#0f172a" text-anchor="${textAnchor}">${n.label}</text>`;
+            });
+
+            svg.innerHTML = `<g>${linkSvg}</g><g>${nodeSvg}</g>`;
+        })();
+        {% endif %}
+    </script>
+</body>
+</html>

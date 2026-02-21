@@ -1,0 +1,119 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="utility-light-page">
+    <div class="main">
+        <section class="card">
+            <h3>Dashboard Widgets</h3>
+            <form method="POST" action="{{ url_for('update_widgets') }}" class="case-form">
+                <label><input type="checkbox" name="widgets" value="analytics" {% if prefs.analytics %}checked{% endif %}> Analytics</label>
+                <label><input type="checkbox" name="widgets" value="summary" {% if prefs.summary %}checked{% endif %}> Summary</label>
+                <label><input type="checkbox" name="widgets" value="search_results" {% if prefs.search_results %}checked{% endif %}> Search Results</label>
+                <label><input type="checkbox" name="widgets" value="history" {% if prefs.history %}checked{% endif %}> Mission Logs</label>
+                <button type="submit" class="btn-search">Save Widgets</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h3>Threat Discovery Settings</h3>
+            <form method="POST" action="{{ url_for('update_threat_settings') }}" class="case-form">
+                <input type="number" name="anomaly_threshold" min="1" value="{{ settings.anomaly_threshold if settings else 2 }}">
+                <label>
+                    <input type="checkbox" name="auto_case" {% if settings and settings.auto_case %}checked{% endif %}>
+                    Auto-open cases for new threats
+                </label>
+                <button type="submit" class="btn-search">Save Threat Settings</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h3>Data Source</h3>
+            <form method="POST" action="{{ url_for('update_data_source') }}" class="case-form">
+                <select name="data_source">
+                    <option value="live" {% if data_source == 'live' %}selected{% endif %}>Live Logs</option>
+                    <option value="simulation" {% if data_source == 'simulation' %}selected{% endif %}>Simulations</option>
+                    <option value="both" {% if data_source == 'both' %}selected{% endif %}>Live + Simulations</option>
+                </select>
+                <button type="submit" class="btn-search">Save Data Source</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h3>Live Alert Rules</h3>
+            <form method="POST" action="{{ url_for('create_alert_rule') }}" class="case-form">
+                <input type="text" name="name" placeholder="Rule name">
+                <select name="attack_type">
+                    <option value="">Any attack</option>
+                    <option>Phishing</option>
+                    <option>Malware</option>
+                    <option>Ransomware</option>
+                    <option>DDoS</option>
+                    <option>Supply Chain</option>
+                    <option>APT</option>
+                    <option>Insider Threat</option>
+                </select>
+                <select name="stage">
+                    <option value="">Any stage</option>
+                    <option>Reconnaissance</option>
+                    <option>Delivery</option>
+                    <option>Exploitation</option>
+                    <option>Installation</option>
+                    <option>Command & Control</option>
+                    <option>Actions on Objectives</option>
+                </select>
+                <select name="status">
+                    <option>Missed</option>
+                    <option>Detected</option>
+                </select>
+                <select name="severity_threshold">
+                    <option value="low">Low+</option>
+                    <option value="medium" selected>Medium+</option>
+                    <option value="high">High+</option>
+                    <option value="critical">Critical</option>
+                </select>
+                <label>
+                    <input type="checkbox" name="auto_case">
+                    Auto-open case
+                </label>
+                <button type="submit" class="btn-search">Add Rule</button>
+            </form>
+
+            {% if alert_rules %}
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Attack</th><th>Stage</th><th>Status</th><th>Severity</th><th>Enabled</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for r in alert_rules %}
+                    <tr>
+                        <td>{{ r.name }}</td>
+                        <td>{{ r.attack_type or 'Any' }}</td>
+                        <td>{{ r.stage or 'Any' }}</td>
+                        <td>{{ r.status }}</td>
+                        <td>{{ r.severity_threshold }}</td>
+                        <td>{{ 'yes' if r.enabled else 'no' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('toggle_alert_rule', rule_id=r.id) }}" class="inline-form">
+                                <button type="submit" class="btn-search">Toggle</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('delete_alert_rule', rule_id=r.id) }}" class="inline-form">
+                                <button type="submit" class="btn-search">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-dim">No alert rules yet.</p>
+            {% endif %}
+        </section>
+
+        <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EPS Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="elastic-ui eps-dark-page">
+    <div class="eui-topbar">
+        <div class="eui-brand">Threat Intelligent Dashboard</div>
+        <div class="eui-global-search">
+            <input type="text" placeholder="Find apps, content, and more..." aria-label="Global search">
+        </div>
+        <div class="eui-top-actions">
+            <a href="{{ url_for('dashboard') }}" class="eui-action-link">Dashboard</a>
+            <a href="{{ url_for('user_profile') }}" class="eui-user-pill">{{ (user.username[:1] if user else 'G')|upper }}</a>
+        </div>
+    </div>
+
+    <div class="eui-subnav">
+        <a href="{{ url_for('dashboard') }}" class="eui-subnav-item">Security</a>
+        <a href="{{ url_for('analytics_panels_page') }}" class="eui-subnav-item">Analytics Panels</a>
+        <a href="{{ url_for('eps_dashboard_page') }}" class="eui-subnav-item active">EPS Dashboard</a>
+        <a href="{{ url_for('kpi_dashboard_page') }}" class="eui-subnav-item">KPI Dashboard</a>
+    </div>
+
+    <main class="main">
+        <section class="card">
+            <h3>EPS Dashboard</h3>
+            <div class="insight-buttons">
+                <a class="btn-search panel-link" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+                <a class="btn-search panel-link" href="{{ url_for('analytics_panels_page') }}">Back to Analytics Panels</a>
+                <a class="btn-search panel-link" href="{{ url_for('kpi_dashboard_page') }}">Open KPI Dashboard</a>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <div class="eps-grid">
+                <div class="eps-panel">
+                    <h4>AVG EPS For Last 10 Days</h4>
+                    <canvas id="epsDailyChart" height="140"></canvas>
+                </div>
+                <div class="eps-panel">
+                    <h4>Raw Logs</h4>
+                    <canvas id="rawLogsChart" height="140"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <div class="eps-kpi-grid">
+                <div class="severity-card">
+                    <small>Total Simulations</small>
+                    <h2>{{ eps.totals.simulations if eps and eps.totals else 0 }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Total Events</small>
+                    <h2>{{ eps.totals.events if eps and eps.totals else 0 }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Average EPS</small>
+                    <h2>{{ eps.totals.avg_eps if eps and eps.totals else 0 }}</h2>
+                </div>
+                <div class="severity-card">
+                    <small>Peak EPS</small>
+                    <h2>{{ eps.totals.peak_eps if eps and eps.totals else 0 }}</h2>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mt-4">
+            <div class="eps-table-grid">
+                <div class="eps-table-panel">
+                    <h4>EPS by Device Type</h4>
+                    <table class="mitre-table">
+                        <thead>
+                            <tr><th>Device Type</th><th>Count</th><th>Volume</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for row in (eps.device_rows if eps else []) %}
+                            <tr><td>{{ row.name }}</td><td>{{ row.count }}</td><td>{{ row.volume }}</td></tr>
+                            {% endfor %}
+                            {% if not eps or not eps.device_rows %}
+                            <tr><td colspan="3" class="text-dim">No data.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="eps-table-panel">
+                    <h4>EPS by Log Type</h4>
+                    <table class="mitre-table">
+                        <thead>
+                            <tr><th>Log Type</th><th>Count</th><th>Volume</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for row in (eps.log_type_rows if eps else []) %}
+                            <tr><td>{{ row.name }}</td><td>{{ row.count }}</td><td>{{ row.volume }}</td></tr>
+                            {% endfor %}
+                            {% if not eps or not eps.log_type_rows %}
+                            <tr><td colspan="3" class="text-dim">No data.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="eps-table-panel">
+                    <h4>EPS by Host Name</h4>
+                    <table class="mitre-table">
+                        <thead>
+                            <tr><th>Host Name</th><th>Count</th><th>Volume</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for row in (eps.host_rows if eps else []) %}
+                            <tr><td>{{ row.name }}</td><td>{{ row.count }}</td><td>{{ row.volume }}</td></tr>
+                            {% endfor %}
+                            {% if not eps or not eps.host_rows %}
+                            <tr><td colspan="3" class="text-dim">No data.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <input type="hidden" id="eps_daily_labels" value='{{ eps.daily_labels|tojson if eps else "[]" }}'>
+        <input type="hidden" id="eps_daily_values" value='{{ eps.daily_eps_values|tojson if eps else "[]" }}'>
+        <input type="hidden" id="raw_log_labels" value='{{ eps.raw_labels|tojson if eps else "[]" }}'>
+        <input type="hidden" id="raw_log_values" value='{{ eps.raw_values|tojson if eps else "[]" }}'>
+    </main>
+
+    <script>
+        function parseJsonInput(id) {
+            const el = document.getElementById(id);
+            if (!el) return [];
+            try { return JSON.parse(el.value || '[]'); } catch (e) { return []; }
+        }
+
+        const epsDailyCtx = document.getElementById('epsDailyChart');
+        if (epsDailyCtx) {
+            new Chart(epsDailyCtx, {
+                type: 'line',
+                data: {
+                    labels: parseJsonInput('eps_daily_labels'),
+                    datasets: [{
+                        label: 'Avg EPS',
+                        data: parseJsonInput('eps_daily_values'),
+                        borderColor: '#22a7ff',
+                        backgroundColor: 'rgba(34,167,255,.18)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 2,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } },
+                        y: { beginAtZero: true, ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } }
+                    }
+                }
+            });
+        }
+
+        const rawLogsCtx = document.getElementById('rawLogsChart');
+        if (rawLogsCtx) {
+            new Chart(rawLogsCtx, {
+                type: 'line',
+                data: {
+                    labels: parseJsonInput('raw_log_labels'),
+                    datasets: [{
+                        label: 'Raw Logs',
+                        data: parseJsonInput('raw_log_values'),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,.20)',
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: 2,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } },
+                        y: { beginAtZero: true, ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } }
+                    }
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - User Roles</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main">
+        <section class="card">
+            <h3>User Roles</h3>
+            <table>
+                <thead>
+                    <tr><th>User</th><th>Email</th><th>Role</th><th>Updated</th></tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ u.username }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin_users') }}" class="inline-form">
+                                <input type="hidden" name="user_id" value="{{ u.id }}">
+                                <select name="role">
+                                    <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
+                                    <option value="analyst" {% if u.role == 'analyst' %}selected{% endif %}>analyst</option>
+                                    <option value="viewer" {% if u.role == 'viewer' %}selected{% endif %}>viewer</option>
+                                </select>
+                                <button type="submit" class="btn-search">Update</button>
+                            </form>
+                        </td>
+                        <td>{{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <a href="{{ url_for('dashboard') }}" class="btn-run">Back to Dashboard</a>
+        </section>
+        <section class="card">
+            <h3>Retention Policy</h3>
+            <form method="POST" action="{{ url_for('update_retention') }}" class="case-form">
+                <input type="number" name="simulations_days" min="1" value="{{ policy.simulations_days if policy else 90 }}" placeholder="Simulations (days)">
+                <input type="number" name="audit_days" min="1" value="{{ policy.audit_days if policy else 180 }}" placeholder="Audit Logs (days)">
+                <input type="number" name="live_logs_days" min="1" value="{{ policy.live_logs_days if policy else 30 }}" placeholder="Live Logs (days)">
+                <label>
+                    <input type="checkbox" name="enabled" {% if policy and policy.enabled %}checked{% endif %}>
+                    Enabled
+                </label>
+                <button type="submit" class="btn-search">Save Policy</button>
+            </form>
+        </section>
+        <section class="card">
+            <h3>Recent Audit Log</h3>
+            <table>
+                <thead>
+                    <tr><th>Time</th><th>Actor</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for a in audit_logs %}
+                    <tr>
+                        <td>{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ a.actor_id or '-' }}</td>
+                        <td>{{ a.action }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+</body>
+</html>

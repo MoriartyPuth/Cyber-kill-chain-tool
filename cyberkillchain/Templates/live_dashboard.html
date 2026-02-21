@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Security Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--bg:#f6f8fc;--card:#fff;--line:#dbe2ee;--text:#111827;--dim:#475569;--primary:#0b5fff;--success:#16a34a;--danger:#dc2626}
+    *{box-sizing:border-box} body{margin:0;font-family:'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+    .topbar{background:#071a3a;color:#fff;padding:12px 16px;position:sticky;top:0;z-index:40}.topbar h1{margin:0;font-size:1.25rem}.topbar p{margin:4px 0 0;opacity:.85;font-size:.9rem}
+    .kpis{position:sticky;top:64px;z-index:39;display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}.kpi small{display:block;color:var(--dim)}
+    .filters{position:sticky;top:129px;z-index:38;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px}
+    .fgrid{display:grid;grid-template-columns:repeat(9,minmax(110px,1fr));gap:10px;align-items:end}.field{display:flex;flex-direction:column;gap:5px}
+    .field label{font-size:.76rem;color:var(--dim)} select,input{height:34px;border:1px solid #c7d2e5;border-radius:8px;padding:0 8px;background:#fff}
+    .btn{height:34px;border:1px solid #b9c8e3;background:#fff;color:#0b5fff;border-radius:8px;padding:0 10px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:600}
+    .btn.primary{background:#0b5fff;border-color:#0b5fff;color:#fff}.btn:disabled{opacity:.6;cursor:not-allowed}
+    .layout{display:grid;grid-template-columns:35% 65%;gap:12px;padding:12px 14px 18px}.stack{display:grid;gap:12px}
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}.panel h3{margin:0 0 8px;font-size:1rem}.panel h4{margin:0 0 8px;font-size:.92rem;color:#1f2937}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}.note{font-size:.82rem;color:var(--dim)}
+    .trends{display:grid;grid-template-columns:1fr 1fr;gap:10px}.trend{border:1px solid var(--line);border-radius:8px;padding:8px}
+    .stream-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.stream{max-height:58vh;overflow:auto;display:grid;gap:8px;padding-right:4px}
+    .card{border:1px solid #e5eaf3;border-left:4px solid var(--primary);border-radius:8px;padding:10px;background:#fff;cursor:pointer}
+    .card.detected{border-left-color:var(--success)}.card.missed{border-left-color:var(--danger)}
+    .row{display:flex;justify-content:space-between;gap:8px}.title{font-weight:700;font-size:.95rem}.time{font-size:.82rem;color:var(--dim)}
+    .chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.chip{border-radius:999px;padding:2px 8px;font-size:.74rem;background:#eef2f7;color:#334155}
+    .chip.detected{background:#dcfce7;color:#166534}.chip.missed{background:#fee2e2;color:#991b1b}
+    .chip.low{background:#e0f2fe;color:#0c4a6e}.chip.medium{background:#fef3c7;color:#92400e}.chip.high,.chip.critical{background:#fee2e2;color:#991b1b}
+    .desc{font-size:.86rem;color:#334155;margin-top:6px}.compact .desc{display:none}
+    .card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.card-actions .btn{height:30px;font-size:.78rem}
+    .alerts{display:grid;gap:8px;max-height:32vh;overflow:auto}.alert{border:1px solid #f4d2d2;background:#fff7f7;border-radius:8px;padding:8px}
+    .pill{border-radius:999px;font-size:.72rem;padding:2px 8px;background:#eef2f7;color:#334155}
+    .drawer{position:fixed;top:64px;right:-440px;width:420px;height:calc(100vh - 64px);background:#fff;border-left:1px solid var(--line);box-shadow:-8px 0 20px rgba(0,0,0,.06);transition:right .2s;z-index:50;overflow:auto;padding:12px}
+    .drawer.open{right:0}.drawer pre{white-space:pre-wrap;word-break:break-word;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:.78rem;max-height:220px;overflow:auto}
+    .banner{margin-top:8px;padding:8px;border-radius:8px;border-left:4px solid var(--primary);background:#eef4ff;color:#1e3a8a;font-size:.86rem;white-space:pre-wrap}.hidden{display:none}
+    @media (max-width:1280px){.fgrid{grid-template-columns:repeat(5,minmax(120px,1fr))}}
+    @media (max-width:1024px){.kpis{top:60px;grid-template-columns:repeat(2,minmax(120px,1fr))}.filters{top:150px}.layout{grid-template-columns:1fr}.trends{grid-template-columns:1fr}.drawer{width:100%;right:-100%}}
+    @media (max-width:640px){.fgrid{grid-template-columns:1fr}.filters{top:180px}.stream{max-height:46vh}}
+  </style>
+</head>
+<body data-ai-enabled="{{ '1' if ai_enabled else '0' }}">
+  <div class="topbar"><h1>Live Security Dashboard</h1><p>Monitor events, alerts, and investigations in one place.</p></div>
+
+  <section class="kpis">
+    <div class="kpi"><small>Events / Min</small><strong id="kpi-eps">0</strong></div>
+    <div class="kpi"><small>Detected %</small><strong id="kpi-detected">0%</strong></div>
+    <div class="kpi"><small>Critical Count</small><strong id="kpi-critical">0</strong></div>
+    <div class="kpi"><small>Active Alerts</small><strong id="kpi-alerts">0</strong></div>
+    <div class="kpi"><small>Open Cases</small><strong id="kpi-cases">0</strong></div>
+  </section>
+
+  <section class="filters">
+    <div class="fgrid">
+      <div class="field"><label>Mode</label><select id="mode-select"><option value="live">Live</option><option value="replay">Replay</option></select></div>
+      <div class="field"><label>Time Window (min)</label><input id="replay-minutes" type="number" min="1" max="1440" value="60"></div>
+      <div class="field"><label>Severity</label><select id="filter-severity"><option value="">All</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+      <div class="field"><label>Attack Type</label><select id="filter-attack"><option value="">All</option><option>Phishing</option><option>Malware</option><option>Ransomware</option><option>DDoS</option><option>Supply Chain</option><option>APT</option><option>Insider Threat</option></select></div>
+      <div class="field"><label>Status</label><select id="filter-status"><option value="">All</option><option>Detected</option><option>Missed</option></select></div>
+      <div class="field"><label>Host / Source</label><input id="filter-host" type="text" placeholder="host, ip, source"></div>
+      <div class="field"><label>Alert Threshold</label><select id="alert-threshold"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+      <div class="field"><label>Density</label><select id="density-toggle"><option value="compact">Compact</option><option value="detailed">Detailed</option></select></div>
+      <div class="field"><label>Actions</label><div class="actions"><button id="replay-btn" class="btn" type="button">Load</button><a href="{{ url_for('live_history_view') }}" class="btn">History</a><a href="{{ url_for('dashboard') }}" class="btn">Dashboard</a></div></div>
+    </div>
+  </section>
+
+  <main class="layout">
+    <section class="stack">
+      <div class="panel">
+        <h3>Controls</h3>
+        <div class="actions" style="margin-bottom:8px">
+          <span class="pill" id="mode-pill">Mode: LIVE</span><span class="pill" id="sync-pill">Sync: Ready</span>
+        </div>
+        <div class="actions" style="margin-bottom:8px">
+          <div class="field" style="flex:1"><label>Replay Limit</label><input id="replay-limit" type="number" min="1" max="500" value="100"></div>
+          <div class="field" style="flex:1"><label>Replay Speed</label><select id="replay-speed"><option value="250">4x</option><option value="500">2x</option><option value="1000" selected>1x</option><option value="1500">0.75x</option></select></div>
+        </div>
+        <div class="actions" style="margin-bottom:8px"><input id="replay-slider" type="range" min="0" max="0" value="0" style="flex:1"><span class="pill" id="replay-position">0 / 0</span></div>
+        <div class="actions"><button id="replay-play" class="btn" type="button">Play</button><button id="replay-pause" class="btn" type="button">Pause</button><button id="jump-now" class="btn" type="button">Jump Latest</button></div>
+        <div class="actions" style="margin-top:8px"><button id="ai-brief-btn" class="btn" type="button">Generate Brief</button><button id="load-corr-btn" class="btn" type="button">Correlations</button></div>
+        <div id="ai-brief" class="banner hidden"></div><div id="correlations" class="banner hidden"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Saved Views</h3>
+        <div class="actions" style="margin-bottom:8px"><input id="filter-name" type="text" placeholder="View name" style="flex:1"><button id="save-filter-btn" class="btn" type="button">Save</button></div>
+        <div class="actions"><select id="saved-filters" style="flex:1"><option value="">Saved filters</option></select><button id="apply-filter-btn" class="btn" type="button">Apply</button><button id="delete-filter-btn" class="btn" type="button">Delete</button></div>
+        <div class="note">Set your default view by applying it and reloading.</div>
+      </div>
+
+      <div class="panel"><h3>Alert Center</h3><div id="alert-list" class="alerts"><div class="note">No triggered rules yet.</div></div></div>
+    </section>
+
+    <section class="stack">
+      <div class="panel">
+        <h3>Trends</h3>
+        <div class="trends"><div class="trend"><h4>EPS Over Time</h4><canvas id="eps-chart" height="120"></canvas></div><div class="trend"><h4>Detections vs Misses</h4><canvas id="det-chart" height="120"></canvas></div></div>
+      </div>
+      <div class="panel">
+        <div class="stream-head"><h3 style="margin:0">Live Event Stream</h3><div><span class="note" id="stream-count">0 events</span> <span class="note" id="stream-render">render cap 120</span></div></div>
+        <div id="alert-banner" class="banner hidden"></div>
+        <div id="stream-list" class="stream compact"></div>
+      </div>
+    </section>
+  </main>
+
+  <aside id="drawer" class="drawer">
+    <div class="actions" style="justify-content:space-between;margin-bottom:8px"><strong>Event Details</strong><button id="drawer-close" class="btn" type="button">Close</button></div>
+    <div class="note" id="drawer-title">No event selected</div>
+    <div class="note" id="drawer-meta"></div>
+    <h4>Recommendations</h4><div id="drawer-recs" class="note">-</div>
+    <h4>IOCs</h4><div id="drawer-iocs" class="note">-</div>
+    <h4>Correlation Links</h4><div id="drawer-corr" class="note">-</div>
+    <h4>Workflow Shortcuts</h4>
+    <div class="actions"><button id="drawer-create-case" class="btn primary" type="button">Create Case</button><button id="drawer-assign" class="btn" type="button">Assign</button><button id="drawer-tag" class="btn" type="button">Tag</button><button id="drawer-export" class="btn" type="button">Export</button></div>
+    <div id="drawer-action-note" class="note"></div>
+    <h4>Raw Payload</h4><pre id="drawer-json">{}</pre>
+  </aside>
+
+  <script>
+    const socket = io();
+    const aiEnabled = document.body.dataset.aiEnabled === '1';
+    const severityRank = { low: 1, medium: 2, high: 3, critical: 4 };
+    const MAX_IN_MEMORY = Number(localStorage.getItem('live_max_in_memory') || 500);
+    const RENDER_LIMIT = Number(localStorage.getItem('live_render_limit') || 120);
+    const BATCH_INTERVAL_MS = 250;
+
+    const allLogs = [];
+    const replayLogs = [];
+    const pendingLogs = [];
+    let renderScheduled = false;
+    let replayTimer = null;
+    let selectedEvent = null;
+    let alertRows = [];
+    let correlationsCache = [];
+    let openCases = 0;
+
+    const modeSelect = document.getElementById('mode-select');
+    const replayBtn = document.getElementById('replay-btn');
+    const replayLimit = document.getElementById('replay-limit');
+    const replayMinutes = document.getElementById('replay-minutes');
+    const replaySpeed = document.getElementById('replay-speed');
+    const replaySlider = document.getElementById('replay-slider');
+    const replayPosition = document.getElementById('replay-position');
+    const replayPlay = document.getElementById('replay-play');
+    const replayPause = document.getElementById('replay-pause');
+    const jumpNow = document.getElementById('jump-now');
+    const densityToggle = document.getElementById('density-toggle');
+
+    const filterAttack = document.getElementById('filter-attack');
+    const filterStatus = document.getElementById('filter-status');
+    const filterSeverity = document.getElementById('filter-severity');
+    const filterHost = document.getElementById('filter-host');
+    const alertThreshold = document.getElementById('alert-threshold');
+
+    const streamList = document.getElementById('stream-list');
+    const streamCount = document.getElementById('stream-count');
+    const streamRender = document.getElementById('stream-render');
+    const alertBanner = document.getElementById('alert-banner');
+    const alertList = document.getElementById('alert-list');
+    const aiBrief = document.getElementById('ai-brief');
+    const correlations = document.getElementById('correlations');
+    const modePill = document.getElementById('mode-pill');
+    const syncPill = document.getElementById('sync-pill');
+
+    const kpiEps = document.getElementById('kpi-eps');
+    const kpiDetected = document.getElementById('kpi-detected');
+    const kpiCritical = document.getElementById('kpi-critical');
+    const kpiAlerts = document.getElementById('kpi-alerts');
+    const kpiCases = document.getElementById('kpi-cases');
+
+    const saveFilterBtn = document.getElementById('save-filter-btn');
+    const applyFilterBtn = document.getElementById('apply-filter-btn');
+    const deleteFilterBtn = document.getElementById('delete-filter-btn');
+    const savedFilters = document.getElementById('saved-filters');
+    const filterName = document.getElementById('filter-name');
+    const aiBriefBtn = document.getElementById('ai-brief-btn');
+    const loadCorrBtn = document.getElementById('load-corr-btn');
+
+    const drawer = document.getElementById('drawer');
+    const drawerClose = document.getElementById('drawer-close');
+    const drawerTitle = document.getElementById('drawer-title');
+    const drawerMeta = document.getElementById('drawer-meta');
+    const drawerRecs = document.getElementById('drawer-recs');
+    const drawerIocs = document.getElementById('drawer-iocs');
+    const drawerCorr = document.getElementById('drawer-corr');
+    const drawerJson = document.getElementById('drawer-json');
+    const drawerActionNote = document.getElementById('drawer-action-note');
+    const drawerCreateCase = document.getElementById('drawer-create-case');
+    const drawerAssign = document.getElementById('drawer-assign');
+    const drawerTag = document.getElementById('drawer-tag');
+    const drawerExport = document.getElementById('drawer-export');
+
+    const epsCtx = document.getElementById('eps-chart');
+    const detCtx = document.getElementById('det-chart');
+    let epsChart = null;
+    let detChart = null;
+
+    function normSeverity(v) { return String(v || 'medium').toLowerCase(); }
+    function escapeHtml(v) {
+      return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function getHostSource(data) {
+      const ev = data.event || {};
+      return String(ev.host || ev.hostname || ev.source_ip || ev.dest_ip || data.host || data.source || data.source_ip || data.dest_ip || '');
+    }
+    function activeSource() {
+      if (modeSelect.value === 'replay') {
+        const idx = Number(replaySlider.value || 0);
+        return replayLogs.slice(0, Math.max(1, idx + 1));
+      }
+      return allLogs;
+    }
+
+    function passesFilters(data) {
+      const ev = data.event || {};
+      if (filterAttack.value && data.attack !== filterAttack.value) return false;
+      if (filterStatus.value && ev.status !== filterStatus.value) return false;
+      if (filterSeverity.value && normSeverity(ev.severity || data.severity) !== filterSeverity.value) return false;
+      if (filterHost.value) {
+        const hay = getHostSource(data).toLowerCase();
+        if (!hay.includes(filterHost.value.trim().toLowerCase())) return false;
+      }
+      return true;
+    }
+
+    function scheduleRender() {
+      if (renderScheduled) return;
+      renderScheduled = true;
+      requestAnimationFrame(() => { renderScheduled = false; renderAll(); });
+    }
+
+    function flushPendingLogs() {
+      if (!pendingLogs.length) return;
+      while (pendingLogs.length) allLogs.unshift(pendingLogs.shift());
+      if (allLogs.length > MAX_IN_MEMORY) allLogs.length = MAX_IN_MEMORY;
+      scheduleRender();
+    }
+    setInterval(flushPendingLogs, BATCH_INTERVAL_MS);
+
+    function createLogCard(data) {
+      const ev = data.event || {};
+      const sev = normSeverity(ev.severity || data.severity);
+      const card = document.createElement('article');
+      card.className = `card ${(ev.status || '').toLowerCase()}`;
+      card.dataset.eventId = ev.event_id || '';
+      card.innerHTML = `
+        <div class="row"><div class="title">${escapeHtml(data.attack || 'Unknown')} Attack</div><div class="time">${escapeHtml(data.timestamp || '')}</div></div>
+        <div class="chips"><span class="chip">${escapeHtml(ev.stage || 'Unknown')}</span><span class="chip ${(ev.status || '').toLowerCase()}">${escapeHtml(ev.status || 'Unknown')}</span><span class="chip ${sev}">sev ${escapeHtml(sev)}</span></div>
+        <div class="desc">${escapeHtml(ev.reason || 'No reason provided')}</div>
+        <div class="card-actions"><button class="btn btn-case primary" type="button">Create Case</button><button class="btn btn-assign" type="button">Assign</button><button class="btn btn-tag" type="button">Tag</button><button class="btn btn-export" type="button">Export</button></div>
+      `;
+      return card;
+    }
+
+    function renderStream() {
+      const filtered = activeSource().filter(passesFilters);
+      streamList.classList.toggle('compact', densityToggle.value === 'compact');
+      streamList.innerHTML = '';
+      if (!filtered.length) {
+        streamList.innerHTML = '<div class="note">No matching events for current filters.</div>';
+        streamCount.textContent = '0 events';
+        return filtered;
+      }
+      const show = filtered.slice(0, RENDER_LIMIT);
+      const frag = document.createDocumentFragment();
+      show.forEach(ev => frag.appendChild(createLogCard(ev)));
+      streamList.appendChild(frag);
+      streamCount.textContent = `${filtered.length} events`;
+      streamRender.textContent = `render cap ${RENDER_LIMIT}${filtered.length > RENDER_LIMIT ? ' (truncated)' : ''}`;
+      return filtered;
+    }
+
+    function computeKpis(filtered) {
+      const now = Date.now();
+      const minuteAgo = now - 60000;
+      let perMin = 0, detected = 0, critical = 0, missed = 0;
+      filtered.forEach(d => {
+        const ev = d.event || {};
+        const ts = Date.parse(d.ts || '') || 0;
+        if (ts >= minuteAgo) perMin += 1;
+        if (ev.status === 'Detected') detected += 1;
+        if (ev.status === 'Missed') missed += 1;
+        if (normSeverity(ev.severity || d.severity) === 'critical') critical += 1;
+      });
+      const detPct = filtered.length ? Math.round((detected / filtered.length) * 100) : 0;
+      kpiEps.textContent = String(perMin);
+      kpiDetected.textContent = `${detPct}%`;
+      kpiCritical.textContent = String(critical);
+      kpiAlerts.textContent = String(alertRows.filter(a => a.state === 'active').length);
+      kpiCases.textContent = String(openCases);
+      return { detected, missed };
+    }
+
+    function buildTrendCharts(filtered, detMiss) {
+      const buckets = {};
+      filtered.forEach(d => {
+        const ts = Date.parse(d.ts || '') || Date.now();
+        const m = new Date(ts); m.setSeconds(0, 0);
+        const key = m.toISOString().slice(11, 16);
+        buckets[key] = (buckets[key] || 0) + 1;
+      });
+      const labels = Object.keys(buckets).sort().slice(-20);
+      const values = labels.map(l => buckets[l] || 0);
+
+      if (!epsChart && epsCtx) {
+        epsChart = new Chart(epsCtx, {
+          type: 'line',
+          data: { labels: [], datasets: [{ data: [], borderColor: '#0b5fff', backgroundColor: 'rgba(11,95,255,.18)', fill: true, tension: .3, pointRadius: 1 }] },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(148,163,184,.15)' }, ticks: { color: '#64748b' } }, y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,.15)' }, ticks: { color: '#64748b' } } } }
+        });
+      }
+      if (epsChart) { epsChart.data.labels = labels; epsChart.data.datasets[0].data = values; epsChart.update('none'); }
+
+      if (!detChart && detCtx) {
+        detChart = new Chart(detCtx, {
+          type: 'bar',
+          data: { labels: ['Detected', 'Missed'], datasets: [{ data: [0, 0], backgroundColor: ['#16a34a', '#dc2626'] }] },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b' } }, y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,.15)' }, ticks: { color: '#64748b' } } } }
+        });
+      }
+      if (detChart) { detChart.data.datasets[0].data = [detMiss.detected, detMiss.missed]; detChart.update('none'); }
+    }
+
+    function renderAlerts() {
+      if (!alertRows.length) { alertList.innerHTML = '<div class="note">No triggered rules yet.</div>'; return; }
+      alertList.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      alertRows.slice(0, 80).forEach((a, idx) => {
+        const div = document.createElement('div');
+        div.className = 'alert';
+        div.dataset.alertIdx = String(idx);
+        div.innerHTML = `
+          <div class="row"><strong>${escapeHtml(a.rule_name || 'Rule')}</strong><span class="pill">${escapeHtml(a.state)}</span></div>
+          <div class="note">${escapeHtml(a.message || '')}</div>
+          <div class="actions" style="margin-top:6px"><button class="btn btn-ack" type="button">Acknowledge</button><button class="btn btn-mute" type="button">Mute</button><button class="btn btn-esc" type="button">Escalate</button></div>
+        `;
+        frag.appendChild(div);
+      });
+      alertList.appendChild(frag);
+    }
+
+    function renderAll() {
+      const filtered = renderStream();
+      const dm = computeKpis(filtered);
+      buildTrendCharts(filtered, dm);
+      modePill.textContent = `Mode: ${modeSelect.value.toUpperCase()}`;
+      syncPill.textContent = `Sync: ${savedFilters.value ? 'Filter applied' : 'Default view'}`;
+      replayPosition.textContent = `${Number(replaySlider.value || 0) + 1} / ${Math.max(1, replayLogs.length)}`;
+    }
+
+    function maybeAlert(data) {
+      const ev = data.event || {};
+      if (ev.status !== 'Missed') return;
+      const threshold = alertThreshold.value || 'medium';
+      const sev = normSeverity(ev.severity || data.severity);
+      if (severityRank[sev] >= severityRank[threshold]) {
+        alertBanner.textContent = `Alert: Missed ${data.attack || 'Unknown'} (${sev}) at ${ev.stage || 'Unknown'}`;
+        alertBanner.classList.remove('hidden');
+        setTimeout(() => alertBanner.classList.add('hidden'), 5000);
+      }
+    }
+
+    function loadReplay() {
+      const limit = Math.max(1, Math.min(500, parseInt(replayLimit.value || '100', 10)));
+      const minutes = Math.max(1, Math.min(1440, parseInt(replayMinutes.value || '60', 10)));
+      localStorage.setItem('live_replay_limit', String(limit));
+      localStorage.setItem('live_replay_minutes', String(minutes));
+      fetch(`/api/live/replay?limit=${limit}&minutes=${minutes}`).then(r => r.json()).then(r => {
+        replayLogs.length = 0;
+        (r.events || []).forEach(ev => replayLogs.push(ev));
+        replaySlider.max = String(Math.max(0, replayLogs.length - 1));
+        replaySlider.value = String(Math.max(0, replayLogs.length - 1));
+        scheduleRender();
+      }).catch(() => { syncPill.textContent = 'Sync: Replay load failed'; });
+    }
+
+    function startReplay() {
+      stopReplay();
+      replayTimer = setInterval(() => {
+        const max = Number(replaySlider.max || 0);
+        const cur = Number(replaySlider.value || 0);
+        if (cur >= max) return stopReplay();
+        replaySlider.value = String(cur + 1);
+        scheduleRender();
+      }, Number(replaySpeed.value || 1000));
+    }
+    function stopReplay() { if (replayTimer) { clearInterval(replayTimer); replayTimer = null; } }
+
+    function openDrawer(data) {
+      selectedEvent = data;
+      const ev = data.event || {};
+      drawerTitle.textContent = `${data.attack || 'Unknown'} | ${ev.stage || 'Unknown Stage'}`;
+      drawerMeta.textContent = `${data.timestamp || ''} | ${ev.status || ''} | severity ${normSeverity(ev.severity || data.severity)}`;
+      const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+      drawerRecs.innerHTML = recs.length ? recs.map(r => `- ${escapeHtml(r.stage || '')}: ${escapeHtml(r.improve || '')}`).join('<br>') : 'No recommendations.';
+      const iocs = Array.isArray(data.iocs) ? data.iocs : [];
+      drawerIocs.innerHTML = iocs.length ? iocs.map(i => `- ${escapeHtml(i.type)}: ${escapeHtml(i.value)}`).join('<br>') : 'No IOCs.';
+      const corr = correlationsCache.filter(c => (c.stages || []).includes(ev.stage));
+      drawerCorr.innerHTML = corr.length ? corr.slice(0, 5).map(c => `- ${escapeHtml(c.type)}:${escapeHtml(c.value)} (${c.count})`).join('<br>') : 'No correlation links.';
+      drawerJson.textContent = JSON.stringify(data, null, 2);
+      drawerActionNote.textContent = '';
+      drawer.classList.add('open');
+    }
+    function closeDrawer() { drawer.classList.remove('open'); }
+
+    async function createCaseFromEvent(data) {
+      const resp = await fetch('/cases/create_from_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const payload = await resp.json();
+      if (payload.case_id) { openCases += 1; scheduleRender(); return `Case created: ${payload.case_id}`; }
+      return 'Case creation failed.';
+    }
+
+    async function generateBrief() {
+      const recent = activeSource().slice(0, 25);
+      if (!recent.length) return;
+      aiBrief.textContent = 'Generating brief...'; aiBrief.classList.remove('hidden');
+      try {
+        const resp = await fetch('/ai/live/brief', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ events: recent }) });
+        const payload = await resp.json();
+        aiBrief.textContent = payload.summary || 'No summary available.';
+      } catch { aiBrief.textContent = 'Brief generation failed.'; }
+    }
+
+    async function loadCorrelations() {
+      correlations.textContent = 'Loading correlations...'; correlations.classList.remove('hidden');
+      try {
+        const resp = await fetch('/api/live/correlations');
+        const payload = await resp.json();
+        correlationsCache = payload.correlations || [];
+        if (!correlationsCache.length) { correlations.textContent = 'No correlations yet.'; return; }
+        correlations.textContent = correlationsCache.slice(0, 10).map(r => `${r.type}:${r.value} -> ${r.count} events; stages: ${(r.stages || []).join(', ')}`).join('\n');
+      } catch { correlations.textContent = 'Correlation load failed.'; }
+    }
+
+    async function refreshSavedFilters() {
+      const resp = await fetch('/api/live/filters'); if (!resp.ok) return;
+      const payload = await resp.json(); const list = payload.filters || [];
+      savedFilters.innerHTML = '<option value="">Saved filters</option>';
+      list.forEach(f => { const opt = document.createElement('option'); opt.value = String(f.id); opt.textContent = f.name; opt.dataset.filters = JSON.stringify(f.filters || {}); savedFilters.appendChild(opt); });
+      const savedId = localStorage.getItem('live_filter_selected');
+      if (savedId) { savedFilters.value = savedId; applySavedFilter(); }
+    }
+
+    async function saveFilter() {
+      const name = (filterName.value || '').trim(); if (!name) return;
+      const filters = { attack: filterAttack.value, status: filterStatus.value, severity: filterSeverity.value };
+      await fetch('/api/live/filters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, filters }) });
+      filterName.value = ''; refreshSavedFilters();
+    }
+    function applySavedFilter() {
+      const opt = savedFilters.options[savedFilters.selectedIndex]; if (!opt || !opt.dataset.filters) return;
+      const f = JSON.parse(opt.dataset.filters);
+      filterAttack.value = f.attack || ''; filterStatus.value = f.status || ''; filterSeverity.value = f.severity || '';
+      if (opt.value) localStorage.setItem('live_filter_selected', opt.value);
+      scheduleRender();
+    }
+    async function deleteSavedFilter() {
+      const id = savedFilters.value; if (!id) return;
+      await fetch('/api/live/filters', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      refreshSavedFilters();
+    }
+
+    socket.on('new_log', d => { pendingLogs.push(d); maybeAlert(d); });
+    socket.on('alert', d => {
+      const rows = d.alerts || []; if (!rows.length) return;
+      rows.forEach(r => alertRows.unshift({ ...r, state: 'active', ts: new Date().toISOString() }));
+      if (alertRows.length > 200) alertRows.length = 200;
+      renderAlerts(); scheduleRender();
+    });
+    socket.on('live_filters_updated', () => refreshSavedFilters());
+
+    alertList.addEventListener('click', e => {
+      const item = e.target.closest('.alert'); if (!item) return;
+      const idx = Number(item.dataset.alertIdx || -1); if (idx < 0 || !alertRows[idx]) return;
+      if (e.target.closest('.btn-ack')) alertRows[idx].state = 'acknowledged';
+      if (e.target.closest('.btn-mute')) alertRows[idx].state = 'muted';
+      if (e.target.closest('.btn-esc')) alertRows[idx].state = 'escalated';
+      renderAlerts(); scheduleRender();
+    });
+
+    streamList.addEventListener('click', async e => {
+      const card = e.target.closest('.card'); if (!card) return;
+      const eventId = card.dataset.eventId;
+      const data = activeSource().find(l => (l.event || {}).event_id === eventId);
+      if (!data) return;
+      if (e.target.closest('.btn-case')) {
+        const msg = await createCaseFromEvent(data);
+        alertBanner.textContent = msg; alertBanner.classList.remove('hidden'); setTimeout(() => alertBanner.classList.add('hidden'), 4000); return;
+      }
+      if (e.target.closest('.btn-assign')) {
+        const owner = prompt('Assign to user:'); alertBanner.textContent = owner ? `Assigned to ${owner}` : 'Assign canceled.'; alertBanner.classList.remove('hidden'); setTimeout(() => alertBanner.classList.add('hidden'), 3000); return;
+      }
+      if (e.target.closest('.btn-tag')) {
+        const tag = prompt('Tag this event:'); alertBanner.textContent = tag ? `Tagged: ${tag}` : 'Tag canceled.'; alertBanner.classList.remove('hidden'); setTimeout(() => alertBanner.classList.add('hidden'), 3000); return;
+      }
+      if (e.target.closest('.btn-export')) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `live-event-${eventId || Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href); return;
+      }
+      openDrawer(data);
+    });
+
+    drawerClose.addEventListener('click', closeDrawer);
+    drawerCreateCase.addEventListener('click', async () => { if (!selectedEvent) return; drawerActionNote.textContent = await createCaseFromEvent(selectedEvent); });
+    drawerAssign.addEventListener('click', () => { if (!selectedEvent) return; const owner = prompt('Assign to user:'); drawerActionNote.textContent = owner ? `Assigned to ${owner}` : 'Assign canceled.'; });
+    drawerTag.addEventListener('click', () => { if (!selectedEvent) return; const tag = prompt('Tag this event:'); drawerActionNote.textContent = tag ? `Tag added: ${tag}` : 'Tag canceled.'; });
+    drawerExport.addEventListener('click', () => {
+      if (!selectedEvent) return;
+      const eventId = (selectedEvent.event || {}).event_id || Date.now();
+      const blob = new Blob([JSON.stringify(selectedEvent, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `live-event-${eventId}.json`; a.click(); URL.revokeObjectURL(a.href);
+      drawerActionNote.textContent = 'Exported JSON payload.';
+    });
+
+    modeSelect.addEventListener('change', () => { stopReplay(); if (modeSelect.value === 'replay') loadReplay(); scheduleRender(); });
+    replayBtn.addEventListener('click', loadReplay);
+    replayPlay.addEventListener('click', startReplay);
+    replayPause.addEventListener('click', stopReplay);
+    jumpNow.addEventListener('click', () => { replaySlider.value = replaySlider.max || '0'; scheduleRender(); });
+    replaySlider.addEventListener('input', scheduleRender);
+    densityToggle.addEventListener('change', scheduleRender);
+    filterAttack.addEventListener('change', scheduleRender);
+    filterStatus.addEventListener('change', scheduleRender);
+    filterSeverity.addEventListener('change', scheduleRender);
+    filterHost.addEventListener('input', scheduleRender);
+    alertThreshold.addEventListener('change', scheduleRender);
+
+    saveFilterBtn.addEventListener('click', saveFilter);
+    applyFilterBtn.addEventListener('click', applySavedFilter);
+    deleteFilterBtn.addEventListener('click', deleteSavedFilter);
+    aiBriefBtn.addEventListener('click', generateBrief);
+    loadCorrBtn.addEventListener('click', loadCorrelations);
+
+    const savedLimit = localStorage.getItem('live_replay_limit');
+    const savedMinutes = localStorage.getItem('live_replay_minutes');
+    if (savedLimit) replayLimit.value = savedLimit;
+    if (savedMinutes) replayMinutes.value = savedMinutes;
+    if (!aiEnabled) aiBriefBtn.textContent = 'Generate Brief (Basic)';
+
+    refreshSavedFilters();
+    loadReplay();
+    renderAlerts();
+    scheduleRender();
+  </script>
+</body>
+</html>
