@@ -1514,6 +1514,23 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
     border-bottom: 1px solid #ecf0f6;
 }
 
+.utility-light-page .btn-live {
+    background: #ffffff;
+    color: #0b5fff;
+    border: 1px solid #b9c8e3;
+    box-shadow: none;
+}
+
+.utility-light-page .btn-live:hover {
+    background: #eff6ff;
+    color: #0b5fff;
+    box-shadow: none;
+}
+
+.utility-light-page .threat-advisory-live-btn {
+    margin-left: 10px;
+}
+
 .utility-light-page .summary-text {
     color: #000000;
 }
@@ -2186,8 +2203,8 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
 
 /* --- Threat Advisory Dashboard --- */
 .advisory-page {
-    background: #0b1220;
-    color: #dbe7ff;
+    background: #f6f8fc;
+    color: #1f2937;
 }
 
 .advisory-main {
@@ -2196,8 +2213,8 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
 
 .advisory-page .card,
 .advisory-page .severity-card {
-    background: linear-gradient(180deg, #111a2e, #0e1628);
-    border: 1px solid #223252;
+    background: #ffffff;
+    border: 1px solid #dbe2ee;
 }
 
 .advisory-header {
@@ -2207,9 +2224,39 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
     gap: 12px;
 }
 
+.advisory-header .inline-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.advisory-header .btn-search,
+.advisory-header .btn-run {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 220px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0b5fff;
+    border: 1px solid #b9c8e3;
+    text-decoration: none;
+    font-weight: 700;
+    box-sizing: border-box;
+}
+
+.advisory-header .btn-search:hover,
+.advisory-header .btn-run:hover {
+    background: #eff6ff;
+    color: #0b5fff;
+    transform: translateY(-1px);
+}
+
 .advisory-kpis .severity-card h2 {
     margin: 6px 0 0;
-    color: #7dd3fc;
+    color: #0b5fff;
 }
 
 .advisory-grid {
@@ -2225,8 +2272,8 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
 }
 
 .advisory-item {
-    background: #101a2d;
-    border: 1px solid #23314f;
+    background: #ffffff;
+    border: 1px solid #dbe2ee;
     border-radius: 10px;
     padding: 12px;
 }
@@ -2245,7 +2292,7 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
 }
 
 .advisory-count {
-    color: #94a3b8;
+    color: #6b7280;
     font-size: 12px;
 }
 
@@ -2254,14 +2301,14 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
 }
 
 .advisory-item p {
-    color: #c2d4f7;
+    color: #4b5563;
     font-size: 13px;
 }
 
 .advisory-actions {
     margin: 8px 0 10px;
     font-size: 12px;
-    color: #93c5fd;
+    color: #0b5fff;
 }
 
 .priority-critical { box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.45); }
