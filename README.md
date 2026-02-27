@@ -9,7 +9,8 @@ The platform visualizes how an attack progresses across the **MITRE ATT&CK / cyb
 
 The project is designed for **blue team operations, security training, capability assessment, and defensive research**.
 
-<img width="1529" height="941" alt="image" src="https://github.com/user-attachments/assets/18e8149a-d30b-4b02-8d27-1278ab68c937" />
+<img width="1918" height="771" alt="image" src="https://github.com/user-attachments/assets/99dc84d1-5f60-476a-934e-04a6d007b761" />
+
 
 
 
