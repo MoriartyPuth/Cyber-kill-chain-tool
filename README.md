@@ -106,3 +106,41 @@ This project is intended for **defensive and educational purposes only**. It doe
 ## Status
 
 Active development. Features, scenarios, and playbooks are continuously evolving.
+
+---
+
+## Running with Docker
+
+### Prerequisites
+
+* [Docker](https://www.docker.com/get-started) installed on your machine
+
+### Start the app
+
+```bash
+git clone https://github.com/MoriartyPuth/Cyber-kill-chain-tool.git
+cd Cyber-kill-chain-tool
+docker-compose up --build
+```
+
+Then open your browser at `http://localhost:5000`
+
+### Stop the app
+
+```bash
+docker-compose down
+```
+
+### Configuration
+
+Environment variables can be set in `docker-compose.yml`:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SECRET_KEY` | `change-this-...` | Flask session secret — change before deploying |
+| `DATABASE_URL` | `sqlite:///cyber_killchain.db` | Database connection string |
+| `INITIAL_BUDGET` | `5000` | Starting defense budget |
+| `FLASK_ENV` | `production` | Flask environment |
+| `OPENAI_API_KEY` | _(empty)_ | Optional — enables AI-powered threat analysis |
+
+> The SQLite database is persisted in a Docker volume (`db_data`) so data survives container restarts.
