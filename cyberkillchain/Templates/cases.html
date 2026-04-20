@@ -10,6 +10,7 @@
         <section class="card">
             <h3>Case Management</h3>
             <form method="POST" action="{{ url_for('create_case') }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="text" name="title" placeholder="Case title">
                 <textarea name="description" placeholder="Case description"></textarea>
                 <select name="template_attack">

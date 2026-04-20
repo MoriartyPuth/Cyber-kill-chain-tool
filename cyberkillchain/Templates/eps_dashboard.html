@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="elastic-ui eps-dark-page">
+<body class="elastic-ui light-page">
     <div class="eui-topbar">
         <div class="eui-brand">Threat Intelligent Dashboard</div>
         <div class="eui-global-search">
@@ -157,8 +157,8 @@
                     responsive: true,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } },
-                        y: { beginAtZero: true, ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } }
+                        x: { ticks: { color: '#4b5563' }, grid: { color: 'rgba(0,0,0,.07)' } },
+                        y: { beginAtZero: true, ticks: { color: '#4b5563' }, grid: { color: 'rgba(0,0,0,.07)' } }
                     }
                 }
             });
@@ -174,7 +174,7 @@
                         label: 'Raw Logs',
                         data: parseJsonInput('raw_log_values'),
                         borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59,130,246,.20)',
+                        backgroundColor: 'rgba(59,130,246,.12)',
                         fill: true,
                         tension: 0.25,
                         pointRadius: 2,
@@ -185,8 +185,8 @@
                     responsive: true,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } },
-                        y: { beginAtZero: true, ticks: { color: '#b7c5dd' }, grid: { color: 'rgba(255,255,255,.08)' } }
+                        x: { ticks: { color: '#4b5563' }, grid: { color: 'rgba(0,0,0,.07)' } },
+                        y: { beginAtZero: true, ticks: { color: '#4b5563' }, grid: { color: 'rgba(0,0,0,.07)' } }
                     }
                 }
             });

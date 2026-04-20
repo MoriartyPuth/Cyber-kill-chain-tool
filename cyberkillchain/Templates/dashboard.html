@@ -124,6 +124,7 @@
                 <div class="saved-search-item">
                     <a href="{{ url_for('search', q=s.query_text) }}">{{ s.name }}</a>
                     <form method="POST" action="{{ url_for('delete_search', search_id=s.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-link">Remove</button>
                     </form>
                 </div>
@@ -154,50 +155,51 @@
                     </form>
                 </div>
             </section>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-wrap">
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
             <header class="top-header">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                <div class="flash-wrap">
-                    {% for category, message in messages %}
-                    <div class="flash {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-                {% endwith %}
                 <div class="header-left">
-                    <h1>Users</h1>
-                    <small class="text-dim">Last event: 1 second ago</small>
+                    <h1>Security Dashboard</h1>
+                    <small class="text-dim">Cyber Kill Chain Defense Simulation</small>
                 </div>
                 <div class="header-actions">
                     <form method="POST" action="/simulate" class="sim-form">
-                    <select name="attack">
-                        <option value="">Select Attack Type</option>
-                        <option>Phishing</option>
-                        <option>Malware</option>
-                        <option>Ransomware</option>
-                        <option>DDoS</option>
-                        <option>Supply Chain</option>
-                        <option>APT</option>
-                        <option>Insider Threat</option>
-                    </select>
-                    <select name="variant">
-                        <option value="standard">Standard</option>
-                        <option value="stealthy">Stealthy</option>
-                        <option value="noisy">Noisy</option>
-                        <option value="fast">Fast</option>
-                        <option value="slow">Slow</option>
-                    </select>
-                    <button type="submit" class="btn-run">Execute Attack</button>
-                    {% if user and user.role in ['admin', 'analyst'] %}
-                    <a href="{{ url_for('live_dashboard') }}" class="btn-live">Live Session</a>
-                    {% endif %}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <select name="attack">
+                            <option value="">Select Attack Type</option>
+                            <option>Phishing</option>
+                            <option>Malware</option>
+                            <option>Ransomware</option>
+                            <option>DDoS</option>
+                            <option>Supply Chain</option>
+                            <option>APT</option>
+                            <option>Insider Threat</option>
+                        </select>
+                        <select name="variant">
+                            <option value="standard">Standard</option>
+                            <option value="stealthy">Stealthy</option>
+                            <option value="noisy">Noisy</option>
+                            <option value="fast">Fast</option>
+                            <option value="slow">Slow</option>
+                        </select>
+                        <button type="submit" class="btn-run">Execute Attack</button>
+                        {% if user and user.role in ['admin', 'analyst'] %}
+                        <a href="{{ url_for('live_dashboard') }}" class="btn-live">Live Session</a>
+                        {% endif %}
                     </form>
                     <form method="GET" action="/search" class="search-form">
                         <input type="text" name="q" placeholder="Search logs & simulations" value="{{ search_query or '' }}">
                         <input type="hidden" name="timeline_days" value="{{ timeline_days or 30 }}">
                         <button type="submit" class="btn-search">Search</button>
                     </form>
-                    <a href="{{ url_for('weekly_report') }}" class="btn-search">Weekly Executive Summary</a>
+                    <a href="{{ url_for('weekly_report') }}" class="btn-search">Weekly Report</a>
                 </div>
             </header>
             <section class="card" id="live-sync-card">
@@ -224,17 +226,6 @@
                 {% if filter_stage %}
                 <div class="filter-banner">Showing results filtered by: <strong>{{ filter_stage|capitalize }}</strong><a href="{{ url_for('dashboard') }}">Clear</a></div>
                 {% endif %}
-                <div class="timeline-controls">
-                    <form method="GET" action="{{ url_for('dashboard') }}">
-                        <label>Timeline Range</label>
-                        <select name="timeline_days">
-                            <option value="7" {% if timeline_days == 7 %}selected{% endif %}>Last 7 days</option>
-                            <option value="30" {% if timeline_days == 30 %}selected{% endif %}>Last 30 days</option>
-                            <option value="90" {% if timeline_days == 90 %}selected{% endif %}>Last 90 days</option>
-                        </select>
-                        <button type="submit" class="btn-search">Apply</button>
-                    </form>
-                </div>
                 <h3>Performance Analytics</h3>
                 {% if analytics.kpi %}
                 <div class="severity-grid">
@@ -471,6 +462,7 @@
             <section class="card search-results">
                 <h3>Search Results for {{ search_query }}</h3>
                 <form method="POST" action="{{ url_for('save_search') }}" class="save-search-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="query" value="{{ search_query }}">
                     <input type="text" name="name" placeholder="Save search as">
                     <button type="submit" class="btn-search">Save</button>

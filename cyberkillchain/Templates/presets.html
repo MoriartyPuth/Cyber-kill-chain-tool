@@ -11,6 +11,7 @@
             <h3>Presets & Scheduling</h3>
             <div class="preset-grid">
                 <form method="POST" action="{{ url_for('create_preset') }}" class="preset-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" name="name" placeholder="Preset name">
                     <select name="attack_type">
                         <option value="">Attack type</option>
@@ -25,6 +26,7 @@
                     <button type="submit" class="btn-search">Create Preset</button>
                 </form>
                 <form method="POST" action="{{ url_for('create_schedule') }}" class="preset-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <select name="preset_id">
                         <option value="">Preset</option>
                         {% for p in presets %}
@@ -44,6 +46,7 @@
                         <small class="text-dim">{{ p.attack_type }}</small>
                     </div>
                     <form method="POST" action="{{ url_for('run_preset', preset_id=p.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-search">Run</button>
                     </form>
                 </div>
@@ -63,6 +66,7 @@
                         {% endif %}
                     </div>
                     <form method="POST" action="{{ url_for('toggle_schedule', schedule_id=s.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-search">{{ 'Disable' if s.enabled else 'Enable' }}</button>
                     </form>
                 </div>

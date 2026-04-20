@@ -26,6 +26,7 @@
             </div>
             <pre id="ai-output" class="summary-text text-dim"></pre>
             <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <textarea name="description">{{ case.description or '' }}</textarea>
                 <select name="status">
                     <option value="Open" {% if case.status == 'Open' %}selected{% endif %}>Open</option>
@@ -44,6 +45,7 @@
                 <button type="submit" class="btn-search">Update Case</button>
             </form>
             <form method="POST" action="{{ url_for('run_case_playbook', case_id=case.id) }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% if sim %}
                 <input type="hidden" name="attack_type" value="{{ sim.attack_type }}">
                 {% else %}
@@ -65,6 +67,7 @@
         <section class="card">
             <h3>Evidence Attachments</h3>
             <form method="POST" action="{{ url_for('add_case_attachment', case_id=case.id) }}" class="case-form" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="file" name="file">
                 <button type="submit" class="btn-search">Upload Evidence</button>
             </form>
@@ -97,6 +100,7 @@
                         <td>{{ c.status }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('update_case_checklist', case_id=case.id) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="item_id" value="{{ c.id }}">
                                 <input type="hidden" name="status" value="{{ 'open' if c.status == 'done' else 'done' }}">
                                 <button type="submit" class="btn-search">Toggle</button>
@@ -130,6 +134,7 @@
         <section class="card">
             <h3>Notes</h3>
             <form method="POST" action="{{ url_for('add_case_note', case_id=case.id) }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <textarea name="note" placeholder="Add a note"></textarea>
                 <button type="submit" class="btn-search">Add Note</button>
             </form>

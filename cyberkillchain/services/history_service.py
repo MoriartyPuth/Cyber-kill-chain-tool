@@ -128,6 +128,8 @@ class HistoryService:
                     }
                 )
 
-        if data_source in ("live", "simulation", "both"):
-            return self.merge_history_fn(live_history, history)
+        if data_source == "live":
+            return live_history
+        if data_source == "simulation":
+            return history
         return self.merge_history_fn(live_history, history)

@@ -45,6 +45,7 @@
                     <p class="text-dim">No tags yet.</p>
                     {% endif %}
                     <form method="POST" action="{{ url_for('tag_simulation', sim_id=sim.id) }}" class="tag-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="text" name="tags" placeholder="Add tags (comma-separated)">
                         <button type="submit" class="btn-small">Add</button>
                     </form>
@@ -86,6 +87,7 @@
             {% if sim %}
             <a href="{{ url_for('user_profile') }}" class="btn-small">View Profile</a>
             <form method="POST" action="{{ url_for('create_case') }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="simulation_id" value="{{ sim.id }}">
                 <input type="hidden" name="title" value="Case for {{ sim.attack_type }} ({{ sim.id }})">
                 <input type="hidden" name="description" value="Generated from simulation report.">

@@ -20,6 +20,7 @@
                         <td>{{ u.email }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('admin_users') }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="user_id" value="{{ u.id }}">
                                 <select name="role">
                                     <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
@@ -39,6 +40,7 @@
         <section class="card">
             <h3>Retention Policy</h3>
             <form method="POST" action="{{ url_for('update_retention') }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="number" name="simulations_days" min="1" value="{{ policy.simulations_days if policy else 90 }}" placeholder="Simulations (days)">
                 <input type="number" name="audit_days" min="1" value="{{ policy.audit_days if policy else 180 }}" placeholder="Audit Logs (days)">
                 <input type="number" name="live_logs_days" min="1" value="{{ policy.live_logs_days if policy else 30 }}" placeholder="Live Logs (days)">

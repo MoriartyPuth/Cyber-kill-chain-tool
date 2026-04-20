@@ -1,7 +1,10 @@
 from datetime import datetime
 import os
+import re
 
 from flask import flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
+from factory import limiter
 
 
 def register_auth_routes(app, deps):
@@ -12,26 +15,43 @@ def register_auth_routes(app, deps):
     ai_enabled = deps["AI_ENABLED"]
 
     @app.route("/register", methods=["GET", "POST"])
+    @limiter.limit("10 per hour")
     def register():
         """User registration"""
         if request.method == "POST":
-            username = request.form.get("username")
-            email = request.form.get("email")
-            password = request.form.get("password")
+            username = (request.form.get("username") or "").strip()
+            email = (request.form.get("email") or "").strip().lower()
+            password = request.form.get("password") or ""
 
             if not username or not email or not password:
                 flash("All fields are required", "error")
+                return redirect(url_for("register"))
+
+            if not re.match(r'^[a-zA-Z0-9_]{3,30}$', username):
+                flash("Username must be 3-30 characters, letters/numbers/underscores only", "error")
+                return redirect(url_for("register"))
+
+            if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+                flash("Invalid email address", "error")
+                return redirect(url_for("register"))
+
+            if len(password) < 8:
+                flash("Password must be at least 8 characters", "error")
                 return redirect(url_for("register"))
 
             if User.query.filter_by(username=username).first():
                 flash("Username already exists", "error")
                 return redirect(url_for("register"))
 
+            if User.query.filter_by(email=email).first():
+                flash("Email already registered", "error")
+                return redirect(url_for("register"))
+
             try:
                 user = User(
                     username=username,
                     email=email,
-                    password_hash=password,
+                    password_hash=generate_password_hash(password),
                     budget=int(os.getenv("INITIAL_BUDGET", 5000)),
                 )
                 db.session.add(user)
@@ -43,21 +63,22 @@ def register_auth_routes(app, deps):
                 return redirect(url_for("dashboard"))
             except Exception as e:
                 db.session.rollback()
-                flash(f"Registration error: {str(e)}", "error")
+                flash("Registration failed. Please try again.", "error")
                 return redirect(url_for("register"))
 
         return render_template("register.html")
 
     @app.route("/login", methods=["GET", "POST"])
+    @limiter.limit("20 per hour; 5 per minute")
     def login():
         """User login"""
         if request.method == "POST":
-            username = request.form.get("username")
-            password = request.form.get("password")
+            username = (request.form.get("username") or "").strip()
+            password = request.form.get("password") or ""
 
             user = User.query.filter_by(username=username).first()
 
-            if user and user.password_hash == password:
+            if user and check_password_hash(user.password_hash, password):
                 session["user_id"] = user.id
                 session["budget"] = user.budget
                 user.last_login = datetime.utcnow()

@@ -178,8 +178,18 @@ def calculate_analytics(user_id=None, history_override=None, timeline_days=30):
                 ai_result['computed_by_ai'] = True
                 # Merge additional deterministic analytics
                 ai_result['case_timeline'] = _case_timeline(history, days=timeline_days)
-                ai_result['case_breakdown'] = _case_breakdown(history)
-                ai_result['workflow'] = _workflow_analysis(history)
+                _ai_cb = _case_breakdown(history)
+                _ai_cb['labels'] = list(_ai_cb['counts'].keys())
+                _ai_cb['values'] = list(_ai_cb['counts'].values())
+                _ai_cb_total = sum(_ai_cb['counts'].values()) or 1
+                _ai_cb['percent'] = {k: round(v / _ai_cb_total * 100, 1) for k, v in _ai_cb['counts'].items()}
+                ai_result['case_breakdown'] = _ai_cb
+                _ai_wf = _workflow_analysis(history)
+                _ai_wf['labels'] = list(_ai_wf['counts'].keys())
+                _ai_wf['values'] = list(_ai_wf['counts'].values())
+                _ai_wf_total = sum(_ai_wf['counts'].values()) or 1
+                _ai_wf['percent'] = {k: round(v / _ai_wf_total * 100, 1) for k, v in _ai_wf['counts'].items()}
+                ai_result['workflow'] = _ai_wf
                 ai_result['funnel'] = _threat_analysis_funnel(history)
                 ai_result['mitre_heatmap'] = _mitre_heatmap(history)
                 ai_result['correlation'] = _correlation_matrix(history)
@@ -224,14 +234,17 @@ def calculate_analytics(user_id=None, history_override=None, timeline_days=30):
     analytics['case_timeline'] = _case_timeline(history, days=timeline_days)
     case_break = _case_breakdown(history)
     analytics['case_breakdown'] = case_break
-    # Flatten keys/values for safe JSON serialization in templates
     analytics['case_breakdown']['labels'] = list(case_break['counts'].keys())
     analytics['case_breakdown']['values'] = list(case_break['counts'].values())
+    _cb_total = sum(case_break['counts'].values()) or 1
+    analytics['case_breakdown']['percent'] = {k: round(v / _cb_total * 100, 1) for k, v in case_break['counts'].items()}
 
     wf = _workflow_analysis(history)
     analytics['workflow'] = wf
     analytics['workflow']['labels'] = list(wf['counts'].keys())
     analytics['workflow']['values'] = list(wf['counts'].values())
+    _wf_total = sum(wf['counts'].values()) or 1
+    analytics['workflow']['percent'] = {k: round(v / _wf_total * 100, 1) for k, v in wf['counts'].items()}
 
     funnel = _threat_analysis_funnel(history)
     analytics['funnel'] = funnel
@@ -495,9 +508,14 @@ def init_session():
     if 'user_id' not in session: session['user_id'] = None
     if 'data_source' not in session: session['data_source'] = 'both'
 
+_db_initialized = False
+
 @app.before_request
 def create_tables():
-    """Create database tables on startup"""
+    global _db_initialized
+    if _db_initialized:
+        return
+    _db_initialized = True
     with app.app_context():
         db.create_all()
         _ensure_schema()

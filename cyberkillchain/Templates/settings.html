@@ -1,7 +1,8 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Settings</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -10,6 +11,7 @@
         <section class="card">
             <h3>Dashboard Widgets</h3>
             <form method="POST" action="{{ url_for('update_widgets') }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label><input type="checkbox" name="widgets" value="analytics" {% if prefs.analytics %}checked{% endif %}> Analytics</label>
                 <label><input type="checkbox" name="widgets" value="summary" {% if prefs.summary %}checked{% endif %}> Summary</label>
                 <label><input type="checkbox" name="widgets" value="search_results" {% if prefs.search_results %}checked{% endif %}> Search Results</label>
@@ -21,6 +23,7 @@
         <section class="card">
             <h3>Threat Discovery Settings</h3>
             <form method="POST" action="{{ url_for('update_threat_settings') }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="number" name="anomaly_threshold" min="1" value="{{ settings.anomaly_threshold if settings else 2 }}">
                 <label>
                     <input type="checkbox" name="auto_case" {% if settings and settings.auto_case %}checked{% endif %}>
@@ -33,6 +36,7 @@
         <section class="card">
             <h3>Data Source</h3>
             <form method="POST" action="{{ url_for('update_data_source') }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <select name="data_source">
                     <option value="live" {% if data_source == 'live' %}selected{% endif %}>Live Logs</option>
                     <option value="simulation" {% if data_source == 'simulation' %}selected{% endif %}>Simulations</option>
@@ -45,6 +49,7 @@
         <section class="card">
             <h3>Live Alert Rules</h3>
             <form method="POST" action="{{ url_for('create_alert_rule') }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="text" name="name" placeholder="Rule name">
                 <select name="attack_type">
                     <option value="">Any attack</option>
@@ -98,9 +103,11 @@
                         <td>{{ 'yes' if r.enabled else 'no' }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('toggle_alert_rule', rule_id=r.id) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn-search">Toggle</button>
                             </form>
                             <form method="POST" action="{{ url_for('delete_alert_rule', rule_id=r.id) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn-search">Delete</button>
                             </form>
                         </td>

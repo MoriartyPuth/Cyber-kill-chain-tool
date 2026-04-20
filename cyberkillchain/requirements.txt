@@ -1,0 +1,10 @@
+flask>=3.0.0
+flask-sqlalchemy>=3.1.0
+flask-socketio>=5.3.0
+flask-wtf>=1.2.0
+flask-limiter>=3.5.0
+python-dotenv>=1.0.0
+openai>=1.0.0
+werkzeug>=3.0.0
+apscheduler>=3.10.0
+eventlet>=0.35.0

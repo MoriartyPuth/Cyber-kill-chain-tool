@@ -20,6 +20,7 @@ def register_ops_routes(app, deps):
     IndicatorRelation = deps["IndicatorRelation"]
     RetentionPolicy = deps["RetentionPolicy"]
     User = deps["User"]
+    Case = deps.get("Case")
 
     ai_enabled = deps["AI_ENABLED"]
     ai_advisor = deps["ai_advisor"]
@@ -152,7 +153,7 @@ def register_ops_routes(app, deps):
             "threat_advisories_generated",
             {"created": created, "updated": updated, "source_count": len(discoveries)},
         )
-        return redirect(url_for("threats_page"))
+        return redirect(url_for("threat_advisory_page"))
 
     @app.route("/threats/advisories/<int:advisory_id>/status", methods=["POST"])
     def update_threat_advisory_status(advisory_id):
@@ -171,7 +172,7 @@ def register_ops_routes(app, deps):
             db.session.add(advisory)
             db.session.commit()
             record_audit(user_id, "threat_advisory_status_updated", {"advisory_id": advisory_id, "status": status})
-        return redirect(url_for("threats_page"))
+        return redirect(url_for("threat_advisory_page"))
 
     @app.route("/settings")
     def settings_page():
@@ -275,6 +276,40 @@ def register_ops_routes(app, deps):
             db.session.commit()
             record_audit(user_id, "alert_rule_deleted", {"rule_id": rule_id})
         return redirect(url_for("settings_page"))
+
+    @app.route("/threats/advisories/<int:advisory_id>/create_case", methods=["POST"])
+    def create_case_from_advisory(advisory_id):
+        user_id = session.get("user_id")
+        if not user_id:
+            return redirect(url_for("login"))
+        if not Case:
+            flash("Case management unavailable.", "error")
+            return redirect(url_for("threat_advisory_page"))
+        advisory = ThreatAdvisory.query.get(advisory_id)
+        if not advisory:
+            flash("Advisory not found.", "error")
+            return redirect(url_for("threat_advisory_page"))
+        title = f"[Advisory] {advisory.title}"
+        description = f"{advisory.summary or ''}\n\nRecommended Actions:\n{advisory.recommended_actions or ''}"
+        severity_map = {"critical": "Critical", "high": "High", "medium": "Medium", "low": "Low"}
+        severity = severity_map.get((advisory.priority or "medium").lower(), "Medium")
+        case = Case(
+            user_id=user_id,
+            title=title[:200],
+            description=description.strip(),
+            status="Open",
+            severity=severity,
+            sla_hours=24 if severity in ("Critical", "High") else 48,
+        )
+        db.session.add(case)
+        db.session.commit()
+        advisory.status = "applied"
+        advisory.updated_at = datetime.utcnow()
+        db.session.add(advisory)
+        db.session.commit()
+        record_audit(user_id, "case_created_from_advisory", {"advisory_id": advisory_id, "case_id": case.id})
+        flash(f"Case created from advisory: {advisory.title}", "success")
+        return redirect(url_for("threat_advisory_page"))
 
     @app.route("/audit")
     @require_roles("admin", "analyst")

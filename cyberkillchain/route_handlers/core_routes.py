@@ -38,6 +38,9 @@ def register_core_routes(app, deps):
     update_analytics_report = deps["update_analytics_report"]
     _severity_from_score = deps["_severity_from_score"]
     db = deps["db"]
+    AlertRule = deps.get("AlertRule")
+    _match_alert_rule = deps.get("_match_alert_rule")
+    _create_case_from_event = deps.get("_create_case_from_event")
 
     def _module_default_settings(module_id):
         return module_default_settings(module_id)
@@ -150,6 +153,8 @@ def register_core_routes(app, deps):
 
     @app.route("/upgrade", methods=["POST"])
     def upgrade():
+        if not session.get("user_id"):
+            return redirect(url_for("login"))
         item = request.form.get("item")
         if item in UPGRADES:
             cost = UPGRADES[item]["cost"]
@@ -166,6 +171,8 @@ def register_core_routes(app, deps):
 
     @app.route("/simulate", methods=["POST"])
     def simulate():
+        if not session.get("user_id"):
+            return redirect(url_for("login"))
         attack_type = request.form.get("attack")
         variant = request.form.get("variant", "standard")
         events, score, weakest, recs = _run_simulation_for_user(attack_type, session.get("user_id"), variant=variant)
@@ -180,6 +187,26 @@ def register_core_routes(app, deps):
                 update_analytics_report(user_id)
             except Exception as e:
                 print(f"Error updating analytics: {e}")
+
+        if user_id and AlertRule and _match_alert_rule:
+            try:
+                sim_payload = {
+                    "attack": attack_type,
+                    "score": score,
+                    "event": {"stage": weakest[0] if weakest else "", "status": "Missed" if weakest else "Detected"},
+                    "severity": _severity_from_score(score).lower(),
+                    "source": "simulation",
+                }
+                rules = AlertRule.query.filter_by(enabled=True).all()
+                for rule in rules:
+                    if rule.user_id and rule.user_id != user_id:
+                        continue
+                    if _match_alert_rule(rule, sim_payload):
+                        flash(f"Alert: Rule '{rule.name}' triggered by {attack_type} simulation.", "warning")
+                        if rule.auto_case and _create_case_from_event:
+                            _create_case_from_event(user_id, sim_payload, title_prefix=f"[Sim] {rule.name}")
+            except Exception as e:
+                print(f"Alert rule evaluation failed (simulate): {e}")
 
         analytics = calculate_analytics(user_id)
         roi_data = calculate_upgrade_roi()
@@ -229,10 +256,16 @@ def register_core_routes(app, deps):
 
     @app.route("/report/<int:sim_id>")
     def report(sim_id):
+        user_id = session.get("user_id")
+        if not user_id:
+            return redirect(url_for("login"))
         try:
             sim = Simulation.query.get_or_404(sim_id)
         except Exception:
             return "Report not found", 404
+        if sim.user_id != user_id:
+            flash("Access denied.", "error")
+            return redirect(url_for("dashboard"))
         report_payload = {
             "attack": sim.attack_type,
             "score": sim.detection_score,
@@ -242,6 +275,56 @@ def register_core_routes(app, deps):
             "severity": _severity_from_score(sim.detection_score),
         }
         return render_template("report_poster.html", report=report_payload, sim=sim, ai_enabled=AI_ENABLED)
+
+    @app.route("/feature-module/rule-tuning/apply", methods=["POST"])
+    @_require_roles("admin", "analyst")
+    def apply_rule_tuning():
+        user_id = session.get("user_id")
+        rule_id = request.form.get("rule_id", type=int)
+        action = (request.form.get("action") or "").strip()
+        if not rule_id or not AlertRule:
+            flash("Invalid rule.", "error")
+            return redirect(url_for("feature_module_page", module_id="rule-tuning"))
+        rule = AlertRule.query.filter_by(id=rule_id, user_id=user_id).first()
+        if not rule:
+            flash("Rule not found.", "error")
+            return redirect(url_for("feature_module_page", module_id="rule-tuning"))
+        if action == "narrow_scope":
+            rule.status = "Missed"
+            rule.stage = rule.stage or "Exploitation"
+        elif action == "adjust_filter":
+            rule.severity_threshold = "high"
+        elif action == "increase_threshold":
+            rule.severity_threshold = "high"
+        db.session.add(rule)
+        db.session.commit()
+        flash(f"Rule '{rule.name}' updated: {action.replace('_', ' ')}.", "success")
+        return redirect(url_for("feature_module_page", module_id="rule-tuning"))
+
+    @app.route("/feature-module/emulation-packs/run", methods=["POST"])
+    @_require_roles("admin", "analyst")
+    def run_emulation_pack():
+        user_id = session.get("user_id")
+        if not user_id:
+            return redirect(url_for("login"))
+        pack_profile = (request.form.get("pack_profile") or "balanced").strip()
+        profile_attacks = {
+            "balanced": ["Phishing", "Malware", "Ransomware"],
+            "stealthy": ["APT", "Insider Threat"],
+            "noisy": ["DDoS", "Malware", "Ransomware"],
+            "fast": ["Phishing", "DDoS"],
+        }
+        attacks = profile_attacks.get(pack_profile, ["Phishing", "Malware"])
+        ran = 0
+        for attack in attacks:
+            try:
+                _run_simulation_for_user(attack, user_id, source="emulation_pack", variant=pack_profile)
+                ran += 1
+            except Exception as e:
+                print(f"Emulation pack run failed for {attack}: {e}")
+        update_analytics_report(user_id)
+        flash(f"Emulation pack '{pack_profile}' completed: {ran} simulations run.", "success")
+        return redirect(url_for("feature_module_page", module_id="emulation-packs"))
 
     @app.route("/reset")
     def reset():

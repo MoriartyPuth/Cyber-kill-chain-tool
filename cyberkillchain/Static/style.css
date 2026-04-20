@@ -700,6 +700,94 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
     border-color: #2f3b50;
 }
 
+/* KPI / EPS light theme */
+.light-page {
+    background: #ffffff;
+    color: #0f172a;
+}
+.light-page .eui-topbar {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    color: #0f172a;
+}
+.light-page .eui-brand { color: #1e40af; }
+.light-page .eui-subnav {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+.light-page .eui-subnav-item { color: #374151; }
+.light-page .eui-subnav-item.active {
+    color: #1d4ed8;
+    border-bottom-color: #1d4ed8;
+}
+.light-page .eui-subnav-item:hover { color: #1d4ed8; }
+.light-page .eui-action-link { color: #374151; }
+.light-page .eui-user-pill {
+    background: #e0e7ff;
+    color: #1e40af;
+}
+.light-page .main {
+    max-width: 1500px;
+    background: #ffffff;
+}
+.light-page .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.light-page .card h3 {
+    color: #0f172a;
+}
+.light-page .severity-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+}
+.light-page .severity-card small { color: #6b7280; }
+.light-page .severity-card h2 { color: #0f172a; }
+.light-page .eps-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+.light-page .eps-panel h4 { color: #0f172a; }
+.light-page .eps-table-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+.light-page .eps-table-panel h4 { color: #0f172a; }
+.light-page .mitre-table th {
+    background: #f1f5f9;
+    color: #374151;
+    border-color: #e2e8f0;
+}
+.light-page .mitre-table td {
+    color: #1f2937;
+    border-color: #e2e8f0;
+}
+.light-page .kpi-wide-table th {
+    background: #f1f5f9;
+    color: #374151;
+    border-color: #e2e8f0;
+}
+.light-page .kpi-wide-table td {
+    color: #1f2937;
+    border-color: #e2e8f0;
+}
+.light-page .kpi-wide-table tbody tr:hover { background: #f8fafc; }
+.light-page .panel-link {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #1d4ed8;
+}
+.light-page .panel-link:hover { background: #e0e7ff; }
+.light-page .text-dim { color: #6b7280; }
+.light-page .kpi-tab { color: #374151; }
+.light-page .kpi-tab.active {
+    color: #1d4ed8;
+    border-bottom-color: #1d4ed8;
+}
+
 .analytics-dashboard-page .analytics-filter-dashboard {
     display: grid;
     grid-template-columns: repeat(5, minmax(140px, 1fr));
@@ -2327,5 +2415,428 @@ td { padding: 12px; border-bottom: 1px solid #2d3748; font-size: 0.9rem; }
     .advisory-header {
         flex-direction: column;
         align-items: flex-start;
+    }
+}
+
+/* ============================================================
+   Dashboard Polish
+   ============================================================ */
+
+/* Flash messages above header, not inside it */
+.flash-wrap {
+    margin-bottom: 16px;
+}
+.flash.warning {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid #f59e0b;
+    color: #f59e0b;
+}
+
+/* Header: title + subtitle stacked neatly */
+.elastic-ui .top-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e9f0;
+}
+.elastic-ui .top-header h1 {
+    font-size: 26px;
+    margin: 0 0 2px 0;
+    line-height: 1.2;
+}
+.elastic-ui .header-left small {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+/* Header actions: all controls same height, no wrapping chaos */
+.elastic-ui .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.elastic-ui .sim-form,
+.elastic-ui .search-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.elastic-ui .sim-form select,
+.elastic-ui .search-form input[type="text"],
+.elastic-ui .btn-run,
+.elastic-ui .btn-live,
+.elastic-ui .btn-search {
+    height: 36px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+.elastic-ui .sim-form select {
+    min-width: 150px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid #c7d2e5;
+    background: #fff;
+    color: #0f172a;
+}
+.elastic-ui .search-form input[type="text"] {
+    min-width: 180px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid #c7d2e5;
+    background: #fff;
+    color: #0f172a;
+}
+
+/* Divider between sim form and search form */
+.elastic-ui .header-actions .search-form {
+    border-left: 1px solid #dde3ed;
+    padding-left: 10px;
+    margin-left: 2px;
+}
+
+/* KPI cards: fixed equal height, clean value display */
+.elastic-ui .severity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.elastic-ui .severity-card {
+    background: #fff;
+    border: 1px solid #dbe2ee;
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(16,24,40,0.05);
+}
+.elastic-ui .severity-card small {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+.elastic-ui .severity-card h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+/* Analytics cards: consistent sizing */
+.elastic-ui .analytics-card {
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid #dbe2ee;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(16,24,40,0.05);
+}
+.elastic-ui .analytics-card small {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+}
+.elastic-ui .analytics-card h2 {
+    margin: 8px 0 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* Summary grid after simulation */
+.elastic-ui .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+.elastic-ui .summary-grid .card {
+    padding: 20px;
+    text-align: center;
+    border-radius: 10px;
+}
+.elastic-ui .summary-grid .card small {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 8px;
+}
+.elastic-ui .summary-grid .card h2 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+/* Status pills in Technical Trace Analysis */
+.elastic-ui .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+.elastic-ui .row-hit .pill {
+    background: #dcfce7;
+    color: #166534;
+}
+.elastic-ui .row-miss .pill {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Technical trace table: cleaner rows */
+.elastic-ui .card table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.elastic-ui .card table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e5e9f0;
+    background: #f9fafb;
+}
+.elastic-ui .card table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f2f7;
+    font-size: 13px;
+    vertical-align: top;
+}
+.elastic-ui .card table tbody tr:last-child td {
+    border-bottom: none;
+}
+.elastic-ui .card table tbody tr:hover {
+    background: #f9fafb;
+}
+
+/* Live Feed card: clean input row */
+.elastic-ui #live-sync-card .inline-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: #f9fafb;
+    border: 1px solid #e5e9f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+}
+.elastic-ui #live-sync-card .inline-form label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #4b5563;
+    white-space: nowrap;
+}
+.elastic-ui #live-sync-card .inline-form select,
+.elastic-ui #live-sync-card .inline-form input[type="number"] {
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 6px;
+    border: 1px solid #c7d2e5;
+    background: #fff;
+    color: #0f172a;
+    font-size: 13px;
+    min-width: 80px;
+}
+.elastic-ui #live-sync-card #dash-sync-status {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+/* Playbook section: tighter, cleaner */
+.elastic-ui .playbook-card {
+    padding: 18px 20px;
+    border-radius: 10px;
+}
+.elastic-ui .playbook-card h4 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.elastic-ui .response-time,
+.elastic-ui .attack-phase {
+    font-size: 12px;
+    margin: 4px 0 10px;
+}
+.elastic-ui .playbook-actions {
+    padding-left: 18px;
+    margin: 0;
+}
+.elastic-ui .playbook-actions li {
+    font-size: 13px;
+    margin-bottom: 6px;
+    line-height: 1.5;
+}
+
+/* Recommendations: consistent card sizing */
+.elastic-ui .rec-card {
+    padding: 18px 20px;
+    border-radius: 10px;
+    border-left-width: 4px;
+}
+.elastic-ui .rec-header {
+    margin-bottom: 12px;
+}
+.elastic-ui .stage-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #eff4ff;
+    color: #2563eb;
+}
+.elastic-ui .priority {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #dc2626;
+}
+.elastic-ui .rec-body p {
+    font-size: 13px;
+    margin: 8px 0;
+    line-height: 1.6;
+    color: #1f2937;
+}
+.elastic-ui .rec-body strong {
+    color: #0f172a;
+}
+.elastic-ui .rec-card .text-dim {
+    font-size: 11px;
+    color: #9ca3af;
+    display: block;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f0f2f7;
+}
+
+/* ROI table: lighter, cleaner */
+.elastic-ui .roi-section {
+    border-radius: 10px;
+    background: #f9fafb;
+    border: 1px solid #e5e9f0;
+    padding: 16px 18px;
+}
+.elastic-ui .roi-section h4 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4b5563;
+    margin: 0 0 12px;
+}
+.elastic-ui .roi-table th {
+    background: transparent;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e5e9f0;
+}
+.elastic-ui .roi-table td {
+    font-size: 13px;
+    padding: 9px 10px;
+    border-bottom: 1px solid #f0f2f7;
+}
+
+/* Empty state */
+.elastic-ui .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    border-radius: 12px;
+    border: 2px dashed #dde3ed;
+    background: #fafbfc;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* Analytics section title */
+.elastic-ui .analytics-section h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e9f0;
+}
+
+/* Correlation matrix: smaller, readable */
+.elastic-ui .matrix-table th,
+.elastic-ui .matrix-table td {
+    font-size: 11px;
+    padding: 7px 9px;
+    text-align: center;
+}
+.elastic-ui .matrix-table th {
+    background: #f9fafb;
+    color: #6b7280;
+}
+
+/* Search results table */
+.elastic-ui .search-results h3 {
+    font-size: 16px;
+    margin: 0 0 14px;
+}
+.elastic-ui .save-search-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.elastic-ui .save-search-form input {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid #c7d2e5;
+    background: #fff;
+    font-size: 13px;
+    min-width: 200px;
+}
+
+/* Filter banner */
+.elastic-ui .filter-banner {
+    background: #eff4ff;
+    color: #2563eb;
+    border: 1px solid #bfcefe;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-bottom: 14px;
+}
+.elastic-ui .filter-banner a {
+    color: #1d4ed8;
+    margin-left: 10px;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .elastic-ui .summary-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .elastic-ui .header-actions {
+        width: 100%;
+    }
+    .elastic-ui .sim-form {
+        flex-wrap: wrap;
     }
 }

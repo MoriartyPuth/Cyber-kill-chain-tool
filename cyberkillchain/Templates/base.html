@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Cyber Kill Chain Simulator{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -33,6 +34,7 @@
             <header class="top-header">
                 <h1>Threat Simulation Dashboard</h1>
                 <form method="POST" action="/simulate" class="sim-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <select name="attack">
                         <option value="">Select Attack Type</option>
                         <option>Phishing</option>
@@ -50,5 +52,23 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+    <script>
+    (function() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!csrfToken) return;
+        const _fetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            if (options.method && options.method.toUpperCase() !== 'GET') {
+                options.headers = options.headers || {};
+                if (options.headers instanceof Headers) {
+                    options.headers.set('X-CSRFToken', csrfToken);
+                } else {
+                    options.headers['X-CSRFToken'] = csrfToken;
+                }
+            }
+            return _fetch(url, options);
+        };
+    })();
+    </script>
 </body>
 </html>

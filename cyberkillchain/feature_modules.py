@@ -132,7 +132,7 @@ def feature_module_preview(user_id, module_id, settings, deps):
                     suggestion = "Narrow attack/stage scope"
                 elif r["precision"] < min_precision:
                     suggestion = "Adjust status target or stage filter"
-                candidates.append({"rule": r["name"], "precision": r["precision"], "fp": r["fp"], "suggestion": suggestion})
+                candidates.append({"rule_id": r.get("id"), "rule": r["name"], "precision": r["precision"], "fp": r["fp"], "suggestion": suggestion})
         return {"type": "table", "title": "Tuning Suggestions", "rows": candidates[:8]}
 
     if module_id == "case-similarity":

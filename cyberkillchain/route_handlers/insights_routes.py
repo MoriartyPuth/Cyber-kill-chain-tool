@@ -1,4 +1,8 @@
-from flask import render_template, request, session, redirect, url_for, jsonify
+import csv
+import io
+import json
+
+from flask import Response, render_template, request, session, redirect, url_for, jsonify
 
 
 def register_insights_routes(app, deps):
@@ -88,6 +92,35 @@ def register_insights_routes(app, deps):
         except Exception:
             user = None
         return render_template("eps_dashboard.html", user=user, eps=eps)
+
+    @app.route("/export/simulations")
+    def export_simulations():
+        user_id = session.get("user_id")
+        if not user_id:
+            return redirect(url_for("login"))
+
+        fmt = request.args.get("format", "csv").lower()
+        history = _build_history(user_id)
+
+        if fmt == "json":
+            payload = json.dumps(history, default=str, indent=2)
+            return Response(
+                payload,
+                mimetype="application/json",
+                headers={"Content-Disposition": "attachment; filename=simulations.json"},
+            )
+
+        output = io.StringIO()
+        fieldnames = ["attack", "score", "time", "variant", "weakest"]
+        writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for row in history:
+            writer.writerow({k: row.get(k, "") for k in fieldnames})
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=simulations.csv"},
+        )
 
     @app.route("/kpi-dashboard")
     @_require_roles("admin", "analyst")

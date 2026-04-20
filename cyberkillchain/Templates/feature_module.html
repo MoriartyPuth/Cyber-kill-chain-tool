@@ -20,6 +20,7 @@
             <h3>{{ module.title }}</h3>
             <p>{{ module.summary }}</p>
             <form method="POST" action="{{ url_for('save_feature_module_settings', module_id=module_id) }}" class="case-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% for field in module.settings %}
                     {% if field.type == 'bool' %}
                     <label>
@@ -89,6 +90,33 @@
                 {% else %}
                 <p class="text-dim">No data available for current settings.</p>
                 {% endif %}
+            {% endif %}
+
+            {% if module_id == 'rule-tuning' and preview and preview.rows %}
+            <div class="mt-4">
+                <h4>Apply Suggestions</h4>
+                {% for row in preview.rows %}
+                {% if row.get('rule_id') %}
+                <form method="POST" action="{{ url_for('apply_rule_tuning') }}" style="display:inline-block; margin:4px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="rule_id" value="{{ row.rule_id }}">
+                    <input type="hidden" name="action" value="{{ row.suggestion|lower|replace(' ', '_') }}">
+                    <button type="submit" class="btn-small">Apply to "{{ row.rule }}"</button>
+                </form>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if module_id == 'emulation-packs' %}
+            <div class="mt-4">
+                <h4>Run This Pack</h4>
+                <form method="POST" action="{{ url_for('run_emulation_pack') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="pack_profile" value="{{ current_settings.get('pack_profile', 'balanced') }}">
+                    <button type="submit" class="btn-run">Run Emulation Pack Now</button>
+                </form>
+            </div>
             {% endif %}
 
             <div class="insight-buttons">

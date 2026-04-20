@@ -15,6 +15,7 @@
             </div>
             <div class="inline-form">
                 <form method="POST" action="{{ url_for('generate_threat_advisories') }}" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn-search">Generate Advisories</button>
                 </form>
                 <a href="{{ url_for('threats_page') }}" class="btn-run">Back to Threat Discovery</a>
@@ -58,14 +59,23 @@
                                 <div>{{ action }}</div>
                                 {% endfor %}
                             </div>
-                            <form method="POST" action="{{ url_for('update_threat_advisory_status', advisory_id=a.id) }}" class="inline-form">
-                                <select name="status">
-                                    <option value="open" {% if a.status == 'open' %}selected{% endif %}>open</option>
-                                    <option value="applied" {% if a.status == 'applied' %}selected{% endif %}>applied</option>
-                                    <option value="dismissed" {% if a.status == 'dismissed' %}selected{% endif %}>dismissed</option>
-                                </select>
-                                <button type="submit" class="btn-search">Update</button>
-                            </form>
+                            <div class="inline-form" style="gap:6px; flex-wrap:wrap;">
+                                <form method="POST" action="{{ url_for('update_threat_advisory_status', advisory_id=a.id) }}" class="inline-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <select name="status">
+                                        <option value="open" {% if a.status == 'open' %}selected{% endif %}>open</option>
+                                        <option value="applied" {% if a.status == 'applied' %}selected{% endif %}>applied</option>
+                                        <option value="dismissed" {% if a.status == 'dismissed' %}selected{% endif %}>dismissed</option>
+                                    </select>
+                                    <button type="submit" class="btn-search">Update</button>
+                                </form>
+                                {% if a.status != 'dismissed' %}
+                                <form method="POST" action="{{ url_for('create_case_from_advisory', advisory_id=a.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-small">+ Create Case</button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </article>
                         {% endfor %}
                     {% else %}

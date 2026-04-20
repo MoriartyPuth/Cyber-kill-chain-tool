@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from flask import Response, jsonify, redirect, render_template, request, session, url_for
+from factory import csrf
 
 
 def register_live_routes(app, socketio, deps):
@@ -266,6 +267,7 @@ def register_live_routes(app, socketio, deps):
         return payload, event, score, weakest, recs
 
     @app.route("/api/logs", methods=["POST"])
+    @csrf.exempt
     def receive_logs():
         log = request.get_json()
         if not log:

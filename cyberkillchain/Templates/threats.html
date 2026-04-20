@@ -10,6 +10,7 @@
         <section class="card">
             <h3>Threat Discovery</h3>
             <form method="POST" action="{{ url_for('run_threat_summary') }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn-search">Generate Summary</button>
             </form>
         </section>
@@ -66,6 +67,7 @@
                         <td>{{ s.last_seen.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('mark_threat', signature_id=s.id) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="status">
                                     <option value="new" {% if s.status == 'new' %}selected{% endif %}>new</option>
                                     <option value="reviewed" {% if s.status == 'reviewed' %}selected{% endif %}>reviewed</option>
