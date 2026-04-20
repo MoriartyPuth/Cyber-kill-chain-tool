@@ -1,0 +1,17 @@
+services:
+  web:
+    build: ./cyberkillchain
+    ports:
+      - "5000:5000"
+    volumes:
+      - db_data:/app/instance
+    environment:
+      SECRET_KEY: change-this-to-a-random-secret-key
+      DATABASE_URL: sqlite:///cyber_killchain.db
+      INITIAL_BUDGET: "5000"
+      FLASK_ENV: production
+      OPENAI_API_KEY: ""
+    restart: unless-stopped
+
+volumes:
+  db_data:
