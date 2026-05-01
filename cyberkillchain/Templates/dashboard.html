@@ -276,6 +276,64 @@
                     </div>
                 </div>
 
+                <!-- Hidden data inputs for JS charts -->
+                {% if analytics.attack_labels is defined %}
+                <input type="hidden" id="attack_labels" value="{{ analytics.attack_labels|tojson }}">
+                <input type="hidden" id="attack_values" value="{{ analytics.attack_values|tojson }}">
+                {% endif %}
+                {% if analytics.case_breakdown %}
+                <input type="hidden" id="case_break_labels" value="{{ analytics.case_breakdown.labels|tojson }}">
+                <input type="hidden" id="case_break_values" value="{{ analytics.case_breakdown.values|tojson }}">
+                {% endif %}
+
+                <!-- Attack Breakdown + Case Timeline charts -->
+                <div class="severity-grid" style="margin-top:16px;">
+                    {% if analytics.attack_breakdown %}
+                    <div class="severity-card viz-fixed-card">
+                        <small>Attack Breakdown (Avg Detection %)</small>
+                        <div class="viz-fixed-wrap">
+                            <canvas id="attackChart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if analytics.case_timeline %}
+                    <div class="severity-card viz-fixed-card">
+                        <small>Case Timeline</small>
+                        <div class="viz-fixed-wrap">
+                            <canvas id="caseTimeline"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Case Breakdown + Workflow charts -->
+                <div class="severity-grid" style="margin-top:16px;">
+                    {% if analytics.case_breakdown %}
+                    <div class="severity-card viz-fixed-card">
+                        <small>Case Breakdown</small>
+                        <div class="viz-fixed-wrap">
+                            <canvas id="caseBreakdown"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if analytics.workflow %}
+                    <div class="severity-card viz-fixed-card">
+                        <small>Workflow Analysis</small>
+                        <div class="viz-fixed-wrap">
+                            <canvas id="workflowChart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Threat Funnel chart -->
+                {% if analytics.funnel %}
+                <div class="analytics-card" style="margin-top:16px;">
+                    <small>Threat Funnel</small>
+                    <div id="funnelChart" style="height:220px;"></div>
+                </div>
+                {% endif %}
+
                 <!-- ROI Analysis (Feature 3) -->
                 {% if roi_data %}
                 <div class="roi-section">
